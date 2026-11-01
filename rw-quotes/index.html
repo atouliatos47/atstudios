@@ -1,0 +1,1150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="RW Quotes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>RW Belting Quotation Maker</title>
+<style>
+  /* Layout: the form on the left, a live A4 quote on the right; on phones one column with Edit / Preview tabs. */
+  :root {
+    --bg: #F2F4F2; --card: #FFFFFF; --ink: #1F2421; --muted: #5B625D; --line: #D5D9D6;
+    --accent: #22772C; --accent-ink: #FFFFFF; --accent-text: #22772C; --focus: #2E9A3A;
+    --field: #FFFFFF; --field-ro: #F3F5F3; --danger: #B42318; --danger-bg: #FBE9E7;
+    --toast-bg: #1F2421; --toast-fg: #FFFFFF;
+    --warn-bg: #FFF4E5; --warn-fg: #7A4100; --warn-line: #F3D3A6;
+    --pill: #EEF0EE; --pill-fg: #3F4541; --sent: #E6EEFB; --sent-fg: #1D4ED8;
+    --acc: #E3F4E5; --acc-fg: #1B6324; --dec: #FBE9E7; --dec-fg: #B42318;
+    --shadow: 0 2px 16px rgba(0, 0, 0, .12);
+    /* Brand colours for the quote sheet. The sheet is paper, so it stays white in both themes. */
+    --brand: #2E9A3A; --brand-d: #22772C;
+    --ui: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #111513; --card: #1A201C; --ink: #E5EAE6; --muted: #A2ABA5; --line: #333B36;
+      --accent: #237A2E; --accent-ink: #FFFFFF; --accent-text: #7BD487; --focus: #5CC769;
+      --field: #0F1311; --field-ro: #1D2420; --danger: #FF8A80; --danger-bg: #3F1C19;
+      --toast-bg: #E5EAE6; --toast-fg: #111513;
+      --warn-bg: #3A2A12; --warn-fg: #F6D29B; --warn-line: #5C4320;
+      --pill: #262D29; --pill-fg: #C9D0CB; --sent: #1C2B4A; --sent-fg: #9DB8F5;
+      --acc: #173A1E; --acc-fg: #8FDB9A; --dec: #3F1C19; --dec-fg: #FF9C93;
+      --shadow: 0 2px 16px rgba(0, 0, 0, .5);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #111513; --card: #1A201C; --ink: #E5EAE6; --muted: #A2ABA5; --line: #333B36;
+    --accent: #237A2E; --accent-ink: #FFFFFF; --accent-text: #7BD487; --focus: #5CC769;
+    --field: #0F1311; --field-ro: #1D2420; --danger: #FF8A80; --danger-bg: #3F1C19;
+    --toast-bg: #E5EAE6; --toast-fg: #111513;
+    --warn-bg: #3A2A12; --warn-fg: #F6D29B; --warn-line: #5C4320;
+    --pill: #262D29; --pill-fg: #C9D0CB; --sent: #1C2B4A; --sent-fg: #9DB8F5;
+    --acc: #173A1E; --acc-fg: #8FDB9A; --dec: #3F1C19; --dec-fg: #FF9C93;
+    --shadow: 0 2px 16px rgba(0, 0, 0, .5);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 var(--ui); color: var(--ink); background: var(--bg); }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--card); }
+
+  /* ---------- Top bar ---------- */
+  .app-bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    background: var(--card); border-bottom: 1px solid var(--line); }
+  .logo-chip { background: #FFFFFF; border-radius: 6px; padding: 2px 6px; display: inline-flex; }
+  .logo-chip img { height: 32px; display: block; }
+  .where { font-size: 12.5px; color: var(--muted); }
+  .spacer { flex: 1; }
+  .btn { font: inherit; font-size: 14px; font-weight: 600; min-height: 44px; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--card); color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; }
+  .btn:hover { border-color: var(--focus); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn.primary:hover { filter: brightness(.92); }
+  .btn.danger { color: var(--danger); }
+  .btn.danger-solid { background: var(--danger); border-color: var(--danger); color: var(--card); }
+  .btn:disabled { opacity: .55; cursor: default; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  /* ---------- Layout ---------- */
+  .layout { display: grid; grid-template-columns: minmax(340px, 500px) minmax(0, 1fr); gap: 20px; max-width: 1500px; margin: 0 auto;
+    padding-block: 20px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .editor { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .card h2 { margin: 0 0 10px; font-size: 12.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--accent-text); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stack { display: flex; flex-direction: column; gap: 10px; }
+  label, .field > .lbl { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  label.check { flex-direction: row; align-items: center; gap: 8px; font-size: 14px; color: var(--ink); }
+  label.check input { width: 20px; height: 20px; min-height: 0; }
+  /* 16px text stops the iPhone zooming in each time a box is tapped */
+  input, select, textarea { font: inherit; font-size: 16px; color: var(--ink); width: 100%; min-height: 44px; padding: 8px 10px;
+    border: 1px solid var(--line); border-radius: 7px; background: var(--field); }
+  textarea { min-height: 64px; resize: vertical; }
+  input[readonly] { background: var(--field-ro); color: var(--muted); }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--focus); outline-offset: 0; border-color: var(--focus); }
+  .hint { font-size: 12.5px; color: var(--muted); margin: 6px 0 0; }
+
+  /* ---------- Line items ---------- */
+  .item { display: grid; grid-template-columns: 74px 96px minmax(0, 1fr) 92px 44px; gap: 8px; align-items: end; padding: 12px 0; border-top: 1px dashed var(--line); }
+  .item:first-child { border-top: 0; padding-top: 0; }
+  .item .desc { grid-column: 1 / -1; }
+  .item .line-total { font-weight: 600; text-align: right; padding-bottom: 11px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .icon-btn { width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--danger); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; }
+  .icon-btn svg { width: 18px; height: 18px; }
+  .items-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  .items-sum { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .items-sum b { color: var(--ink); }
+
+  /* ---------- The A4 quote sheet ---------- */
+  .preview-wrap { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 76px); align-self: start; max-height: calc(100vh - 96px); overflow: auto; min-width: 0; }
+  .paper { background: #FFFFFF; width: 100%; max-width: 794px; min-height: 1123px; margin: 0 auto; padding: 46px 50px; box-shadow: var(--shadow);
+    color: #1C1C1C; font-size: 13px; line-height: 1.45; font-variant-numeric: tabular-nums; }
+  .q-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
+  .q-logo { width: 240px; max-width: 100%; display: block; }
+  .q-company { margin-top: 10px; font-size: 11.5px; color: #444444; }
+  .q-title { text-align: right; flex-shrink: 0; }
+  .q-title h2 { margin: 2px 0 10px; font-size: 30px; letter-spacing: .14em; color: var(--brand-d); font-weight: 700; }
+  .q-meta { border-collapse: collapse; margin-left: auto; font-size: 12px; }
+  .q-meta th { text-align: left; font-weight: 600; color: #555555; padding: 2px 14px 2px 0; }
+  .q-meta td { text-align: right; padding: 2px 0; }
+  .q-rule { height: 3px; background: var(--brand); margin: 20px 0 18px; }
+  .q-parties { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 20px; }
+  .q-label { font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--brand-d); margin-bottom: 4px; }
+  .q-table-wrap { overflow-x: auto; }
+  table.q-items { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .q-items th { background: var(--brand-d); color: #FFFFFF; text-align: left; font-weight: 600; padding: 7px 8px; }
+  .q-items td { padding: 7px 8px; border-bottom: 1px solid #E1E5E1; vertical-align: top; }
+  .q-items .c { text-align: center; width: 28px; }
+  .q-items td.c { color: #666666; }
+  .num { text-align: right; white-space: nowrap; }
+  .q-items th.num { text-align: right; }
+  .empty { text-align: center; color: #888888; padding: 18px 8px !important; }
+  table.q-totals { width: 290px; max-width: 100%; margin: 12px 0 0 auto; border-collapse: collapse; font-size: 13px; }
+  .q-totals th { text-align: left; font-weight: 500; color: #444444; padding: 4px 8px; }
+  .q-totals td { text-align: right; padding: 4px 8px; white-space: nowrap; }
+  .q-totals tr.grand th, .q-totals tr.grand td { font-weight: 700; font-size: 15px; color: #111111; border-top: 2px solid var(--brand-d); padding-top: 8px; }
+  .q-section { margin-top: 22px; }
+  .q-section p { margin: 0; white-space: pre-line; }
+  .q-terms p { font-size: 11px; color: #444444; }
+  .q-foot { margin-top: 28px; padding-top: 8px; border-top: 1px solid #DDDDDD; font-size: 10.5px; color: #666666; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+
+  /* ---------- Dialogs ---------- */
+  dialog { border: 0; border-radius: 12px; padding: 0; width: min(720px, calc(100vw - 24px)); max-height: calc(100vh - 40px); box-shadow: 0 10px 40px rgba(0, 0, 0, .3);
+    color: var(--ink); background: var(--card); }
+  dialog.small { width: min(440px, calc(100vw - 24px)); }
+  dialog::backdrop { background: rgba(20, 25, 22, .5); }
+  .dlg-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 18px; border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; background: var(--card); z-index: 1; }
+  .dlg-head h2 { margin: 0; font-size: 17px; }
+  .dlg-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+  .dlg-body p { margin: 0; }
+  .dlg-foot { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; padding: 12px 18px; border-top: 1px solid var(--line);
+    position: sticky; bottom: 0; background: var(--card); }
+  .list-wrap { overflow-x: auto; }
+  table.list { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .list th { text-align: left; font-size: 12px; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  .list td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  .list .small { font-size: 12px; color: var(--muted); }
+  .list .num { font-variant-numeric: tabular-nums; }
+  .list .empty { color: var(--muted); }
+  .row-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+  .row-actions .btn { min-height: 38px; padding: 4px 10px; font-size: 13px; }
+  .pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--pill); color: var(--pill-fg); }
+  .pill.sent { background: var(--sent); color: var(--sent-fg); }
+  .pill.accepted { background: var(--acc); color: var(--acc-fg); }
+  .pill.declined { background: var(--dec); color: var(--dec-fg); }
+  .copy-row { display: flex; gap: 8px; align-items: flex-start; }
+  .copy-row input, .copy-row textarea { flex: 1; min-width: 0; }
+  .copy-row .btn { flex-shrink: 0; }
+  .email-steps { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .step-no { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; font-size: 12px;
+    background: var(--pill); color: var(--pill-fg); }
+  .btn.primary .step-no { background: rgba(255, 255, 255, .25); color: var(--accent-ink); }
+
+  /* ---------- Small bits ---------- */
+  .toast { position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); max-width: calc(100vw - 32px);
+    background: var(--toast-bg); color: var(--toast-fg); padding: 10px 16px; border-radius: 8px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 50; }
+  .toast.show { opacity: 1; }
+  .banner { background: var(--warn-bg); color: var(--warn-fg); font-size: 14px; border-bottom: 1px solid var(--warn-line);
+    padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .tabs { display: none; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+
+  /* ---------- Phone and tablet ---------- */
+  @media (max-width: 960px) {
+    .layout { grid-template-columns: 1fr; padding-block: 12px; }
+    .tabs { display: flex; gap: 6px; padding-top: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+    .tabs .btn { flex: 1; }
+    .tabs .btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+    body[data-view="edit"] .preview-wrap { display: none; }
+    body[data-view="preview"] .editor { display: none; }
+    .preview-wrap { position: static; max-height: none; overflow: visible; }
+    .paper { padding: 24px 18px; min-height: 0; }
+    .q-head { flex-direction: column; }
+    .q-title { text-align: left; }
+    .q-meta { margin-left: 0; }
+    .q-parties { grid-template-columns: 1fr; gap: 14px; }
+    .app-bar { position: static; }
+    .where { display: none; }
+  }
+  @media (max-width: 520px) {
+    .grid2 { grid-template-columns: 1fr; }
+    .item { grid-template-columns: 64px 84px minmax(0, 1fr) 44px; }
+    .item .line-total { grid-column: 1 / -1; text-align: left; padding: 0; }
+    .app-bar .btn { font-size: 13px; padding: 6px 10px; flex: 1 1 auto; }
+    .app-bar .spacer { display: none; }
+    .logo-chip { flex-basis: 100%; justify-content: center; background: transparent; }
+    .logo-chip img { background: #FFFFFF; border-radius: 6px; padding: 2px 6px; height: 34px; box-sizing: content-box; }
+    .email-steps { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<header class="app-bar">
+  <span class="logo-chip"><img id="bar-logo" alt="RW Belting Services"></span>
+  <span class="where" id="where">Loading…</span>
+  <span class="spacer"></span>
+  <button class="btn" id="btn-new" type="button">New</button>
+  <button class="btn" id="btn-list" type="button">Saved quotes</button>
+  <button class="btn" id="btn-settings" type="button">Settings</button>
+  <button class="btn" id="btn-save" type="button">Save</button>
+  <button class="btn" id="btn-email" type="button">Email</button>
+  <button class="btn primary" id="btn-pdf" type="button">Download PDF</button>
+</header>
+<div class="banner" id="banner" hidden></div>
+
+<nav class="tabs" aria-label="View">
+  <button class="btn" type="button" data-tab="edit" aria-pressed="true">Edit</button>
+  <button class="btn" type="button" data-tab="preview" aria-pressed="false">Preview</button>
+</nav>
+
+<main class="layout">
+  <!-- ======== The form ======== -->
+  <section class="editor" id="editor" aria-label="Quote details">
+    <div class="card">
+      <h2>Quote</h2>
+      <div class="grid2">
+        <label>Quote number<input id="f-number" data-bind="number" readonly></label>
+        <label>Status
+          <select id="f-status" data-bind="status">
+            <option>Draft</option><option>Sent</option><option>Accepted</option><option>Declined</option>
+          </select>
+        </label>
+        <label>Date<input id="f-date" type="date" data-bind="date"></label>
+        <label>Valid until<input id="f-valid" type="date" data-bind="validUntil"></label>
+        <label>Customer ref. / PO<input id="f-ref" data-bind="reference" placeholder="Optional"></label>
+        <label>Prepared by<input id="f-prep" data-bind="preparedBy"></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Customer</h2>
+      <div class="stack">
+        <div class="grid2">
+          <label>Company<input id="f-co" data-bind="customer.company" autocomplete="organization"></label>
+          <label>Contact name<input id="f-name" data-bind="customer.name" autocomplete="name"></label>
+        </div>
+        <label>Address<textarea id="f-addr" data-bind="customer.address" rows="3"></textarea></label>
+        <div class="grid2">
+          <label>Email<input id="f-email" type="email" data-bind="customer.email" autocomplete="email"></label>
+          <label>Phone<input id="f-phone" type="tel" data-bind="customer.phone" autocomplete="tel"></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Items</h2>
+      <div id="items"></div>
+      <div class="items-foot">
+        <button class="btn" type="button" id="btn-add-item">+ Add line</button>
+        <div class="items-sum" id="items-sum"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Totals</h2>
+      <div class="grid2">
+        <label>Discount %<input id="f-disc" type="number" min="0" max="100" step="any" inputmode="decimal" data-bind="discountPct"></label>
+        <label class="check" style="align-self:end;min-height:44px"><input id="f-vat" type="checkbox" data-bind="vatOn"> Add VAT</label>
+      </div>
+      <p class="hint" id="vat-hint"></p>
+    </div>
+
+    <div class="card">
+      <h2>Notes and terms</h2>
+      <div class="stack">
+        <label>Notes / scope of work<textarea id="f-notes" data-bind="notes" rows="4" placeholder="Shown on the quote under the totals"></textarea></label>
+        <label>Terms<textarea id="f-terms" data-bind="terms" rows="4"></textarea></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======== The live quote ======== -->
+  <section class="preview-wrap" aria-label="Quote preview">
+    <article class="paper" id="paper"></article>
+  </section>
+</main>
+
+<!-- ======== Settings ======== -->
+<dialog id="dlg-settings" aria-labelledby="set-title">
+  <form method="dialog">
+    <div class="dlg-head"><h2 id="set-title">Settings</h2><button class="btn" value="cancel">Close</button></div>
+    <div class="dlg-body">
+      <p class="hint" style="margin:0">Your company details print on every quote.</p>
+      <div class="grid2">
+        <label>Company name<input id="s-name" data-set="company.name"></label>
+        <label>Phone<input id="s-phone" data-set="company.phone"></label>
+        <label>Email<input id="s-email" data-set="company.email"></label>
+        <label>Website<input id="s-web" data-set="company.website"></label>
+      </div>
+      <label>Address<textarea id="s-addr" data-set="company.address" rows="3"></textarea></label>
+      <div class="grid2">
+        <label>Company no.<input id="s-cono" data-set="company.companyNo"></label>
+        <label>VAT no.<input id="s-vatno" data-set="company.vatNo"></label>
+        <label>VAT rate %<input id="s-vat" type="number" step="any" min="0" data-set="vatRate"></label>
+        <label>Quote valid for (days)<input id="s-days" type="number" min="1" step="1" data-set="validityDays"></label>
+        <label>Quote number prefix<input id="s-prefix" data-set="prefix"></label>
+        <label>Next quote number<input id="s-next" type="number" min="1" step="1" data-set="nextNumber"></label>
+      </div>
+      <label>Default “Prepared by”<input id="s-prep" data-set="preparedBy"></label>
+      <label>Default terms<textarea id="s-terms" data-set="terms" rows="5"></textarea></label>
+      <label>Email subject<input id="s-subj" data-set="emailSubject"></label>
+      <label>Email message<textarea id="s-body" data-set="emailBody" rows="8"></textarea></label>
+      <p class="hint" style="margin:0">In the email you can use {number}, {total}, {validUntil}, {contact}, {customer}, {preparedBy} and {company}. They’re filled in from each quote.</p>
+    </div>
+    <div class="dlg-foot">
+      <button class="btn" value="cancel">Cancel</button>
+      <button class="btn primary" type="button" id="btn-settings-save">Save settings</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ======== Saved quotes ======== -->
+<dialog id="dlg-list" aria-labelledby="list-title">
+  <form method="dialog">
+    <div class="dlg-head"><h2 id="list-title">Saved quotes</h2><button class="btn" value="cancel">Close</button></div>
+    <div class="dlg-body">
+      <p class="hint" id="list-where" style="margin:0"></p>
+      <label>Search<input id="q-search" type="search" placeholder="Quote no., customer or ref."></label>
+      <div class="list-wrap">
+        <table class="list">
+          <thead><tr><th>Quote</th><th>Customer</th><th>Status</th><th class="num">Total</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+          <tbody id="q-list"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button class="btn" type="button" id="btn-export">Export backup</button>
+      <button class="btn" type="button" id="btn-import">Import backup</button>
+      <input type="file" id="file-import" accept="application/json,.json" hidden>
+    </div>
+  </form>
+</dialog>
+
+<!-- ======== Email quote ======== -->
+<dialog id="dlg-email" aria-labelledby="email-title">
+  <form method="dialog">
+    <div class="dlg-head"><h2 id="email-title">Email quote</h2><button class="btn" value="cancel">Close</button></div>
+    <div class="dlg-body">
+      <div class="field">
+        <label for="em-to">To</label>
+        <div class="copy-row"><input type="email" id="em-to" multiple placeholder="customer@example.com"><button class="btn" type="button" data-copy="em-to">Copy</button></div>
+      </div>
+      <div class="field">
+        <label for="em-subject">Subject</label>
+        <div class="copy-row"><input id="em-subject"><button class="btn" type="button" data-copy="em-subject">Copy</button></div>
+      </div>
+      <div class="field">
+        <label for="em-body">Message</label>
+        <div class="copy-row"><textarea id="em-body" rows="9"></textarea><button class="btn" type="button" data-copy="em-body">Copy</button></div>
+      </div>
+      <div class="email-steps">
+        <button class="btn primary" type="button" id="em-pdf"><span class="step-no">1</span> Download the PDF</button>
+        <a class="btn" id="em-open" href="mailto:"><span class="step-no">2</span> Open email</a>
+      </div>
+      <p class="hint" style="margin:0">On iPhone, choose Mail in the share menu to attach the PDF, then paste the message. If Open email does nothing, copy the message and paste it into a new email.</p>
+      <label class="check"><input type="checkbox" id="em-mark" checked> Mark this quote as Sent</label>
+    </div>
+    <div class="dlg-foot">
+      <button class="btn primary" type="button" id="em-done">Done</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ======== Yes / no question ======== -->
+<dialog id="dlg-ask" class="small" aria-labelledby="ask-msg">
+  <div class="dlg-body"><p id="ask-msg"></p></div>
+  <div class="dlg-foot">
+    <button class="btn" type="button" id="ask-no">Cancel</button>
+    <button class="btn primary" type="button" id="ask-yes">OK</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="jspdf.umd.min.js"></script>
+<script src="jspdf.plugin.autotable.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // The logo is stored inside this file so it always shows, even offline.
+  const LOGO = "data:image/png;base64,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";
+  const LOGO_W = 300, LOGO_H = 79;            // logo size in pixels (used to keep its shape in the PDF)
+  const UNITS = ['each', 'm', 'm²', 'hr', 'day', 'set', 'roll', 'lot'];
+
+  // ---------- Small helpers ----------
+  const $ = (sel, el = document) => el.querySelector(sel);
+  const $$ = (sel, el = document) => Array.from(el.querySelectorAll(sel));
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const nl = s => esc(s).replace(/\n/g, '<br>');
+  const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
+  const r2 = n => Math.round((n + Number.EPSILON) * 100) / 100;
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const gbp = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' });
+  const money = n => gbp.format(n);
+  const qtyFmt = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 3 });
+  const pct = n => `${qtyFmt.format(num(n))}%`;
+  const isoLocal = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const today = () => isoLocal(new Date());
+  const addDays = (iso, n) => { const d = new Date(iso + 'T12:00:00'); if (isNaN(d)) return ''; d.setDate(d.getDate() + n); return isoLocal(d); };
+  const fmtDate = iso => { const d = new Date(iso + 'T12:00:00'); return isNaN(d) ? '' : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); };
+  const getPath = (o, p) => p.split('.').reduce((a, k) => (a == null ? a : a[k]), o);
+  const setPath = (o, p, v) => { const ks = p.split('.'); const last = ks.pop(); ks.reduce((a, k) => (a[k] ??= {}), o)[last] = v; };
+  const escRe = s => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const safeName = s => String(s).replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
+
+  // This device's browser storage: used for the unsaved draft, and for everything
+  // when the page is opened as a plain file (not from the link).
+  const local = {
+    get(key, fallback) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } },
+    set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch (e) { return false; } }
+  };
+
+  const DEFAULT_SETTINGS = {
+    company: { name: 'RW Belting Services', address: '', phone: '', email: '', website: '', companyNo: '', vatNo: '' },
+    vatRate: 20,
+    validityDays: 30,
+    prefix: 'RWB-',
+    nextNumber: 1,
+    preparedBy: '',
+    terms: 'Prices are in GBP.\nThis quotation is valid until the date shown above.\nLead time to be confirmed when the order is placed.',
+    emailSubject: 'Quotation {number} from {company}',
+    emailBody: 'Dear {contact},\n\nPlease find attached our quotation {number} for {total}.\n\nThe quotation is valid until {validUntil}. If you have any questions, please get in touch.\n\nKind regards,\n{preparedBy}\n{company}'
+  };
+  function mergeSettings(s) {
+    const out = Object.assign(clone(DEFAULT_SETTINGS), clone(s || {}));
+    out.company = Object.assign(clone(DEFAULT_SETTINGS.company), (s && s.company) ? clone(s.company) : {});
+    return out;
+  }
+
+  let settings = mergeSettings(local.get('rwq.settings', {}));
+  let quotes = [];          // saved quotes (from your account, or this device)
+  let mode = 'starting';    // 'account' = saved in your Claude account, 'device' = this browser only
+  let db = null;
+
+  function newQuote() {
+    const d = today();
+    return {
+      id: uid(), number: '', status: 'Draft',
+      date: d, validUntil: addDays(d, num(settings.validityDays) || 30),
+      reference: '', preparedBy: settings.preparedBy || '',
+      customer: { company: '', name: '', address: '', email: '', phone: '' },
+      items: [{ desc: '', qty: 1, unit: 'each', price: '' }],
+      discountPct: 0, vatOn: true, vatRate: num(settings.vatRate),
+      notes: '', terms: settings.terms || ''
+    };
+  }
+  // Fill any missing fields so older quotes still open cleanly.
+  function normalise(x) {
+    const base = newQuote();
+    const src = x ? clone(x) : {};
+    const out = Object.assign(base, src);
+    out.customer = Object.assign(newQuote().customer, src.customer || {});
+    if (!Array.isArray(out.items) || !out.items.length) out.items = [{ desc: '', qty: 1, unit: 'each', price: '' }];
+    if (!/^[A-Za-z0-9_-]+$/.test(String(out.id))) out.id = uid();
+    return out;
+  }
+
+  let q = normalise(local.get('rwq.current', null));
+  let dirty = false;
+
+  // ---------- Sums ----------
+  const lineTotal = it => r2(num(it.qty) * num(it.price));
+  function totals(quote) {
+    const sub = r2(quote.items.reduce((s, it) => s + lineTotal(it), 0));
+    const disc = r2(sub * num(quote.discountPct) / 100);
+    const net = r2(sub - disc);
+    const rate = quote.vatRate ?? settings.vatRate;
+    const vat = quote.vatOn ? r2(net * num(rate) / 100) : 0;
+    return { sub, disc, net, vat, total: r2(net + vat) };
+  }
+  // Next free number: never lower than the highest number already used,
+  // so the phone and the PC can't hand out the same quote number.
+  function nextNumberValue() {
+    let n = Math.max(1, Math.floor(num(settings.nextNumber)) || 1);
+    const re = new RegExp('^' + escRe(settings.prefix) + '(\\d+)$');
+    quotes.forEach(x => { const m = re.exec(x.number || ''); if (m) n = Math.max(n, parseInt(m[1], 10) + 1); });
+    return n;
+  }
+  const nextNumber = () => settings.prefix + String(nextNumberValue()).padStart(4, '0');
+
+  // ---------- Form ----------
+  function fillForm() {
+    $$('[data-bind]', $('#editor')).forEach(el => {
+      const v = getPath(q, el.dataset.bind);
+      if (el.type === 'checkbox') el.checked = !!v;
+      else if (el.dataset.bind !== 'number') el.value = v ?? '';
+    });
+    showNumber();
+    renderItems();
+  }
+  function showNumber() { $('#f-number').value = q.number || `${nextNumber()} (given when saved)`; }
+
+  function itemRow(it, i) {
+    const units = UNITS.includes(it.unit) ? UNITS : [it.unit, ...UNITS];
+    return `<div class="item">
+      <label class="desc">Line ${i + 1} description
+        <textarea id="it-${i}-desc" rows="2" data-item="${i}" data-key="desc" placeholder="e.g. Supply and fit conveyor belt">${esc(it.desc)}</textarea></label>
+      <label>Qty<input id="it-${i}-qty" type="number" min="0" step="any" inputmode="decimal" data-item="${i}" data-key="qty" value="${esc(it.qty)}"></label>
+      <label>Unit<select id="it-${i}-unit" data-item="${i}" data-key="unit">${units.map(u => `<option${u === it.unit ? ' selected' : ''}>${esc(u)}</option>`).join('')}</select></label>
+      <label>Unit price £<input id="it-${i}-price" type="number" min="0" step="0.01" inputmode="decimal" data-item="${i}" data-key="price" value="${esc(it.price)}"></label>
+      <div class="line-total" id="lt-${i}">${money(lineTotal(it))}</div>
+      <button type="button" class="icon-btn" data-remove="${i}" aria-label="Remove line ${i + 1}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>
+      </button>
+    </div>`;
+  }
+  function renderItems() { $('#items').innerHTML = q.items.map(itemRow).join(''); updateSums(); }
+  function updateSums() {
+    const t = totals(q);
+    $('#items-sum').innerHTML = `Subtotal <b>${money(t.sub)}</b> · Total <b>${money(t.total)}</b>`;
+    $('#vat-hint').textContent = q.vatOn
+      ? `VAT is added at ${pct(q.vatRate ?? settings.vatRate)}. Change the rate in Settings.`
+      : 'No VAT will be shown on this quote.';
+  }
+
+  let draftTimer;
+  function changed() {
+    dirty = true;
+    renderPreview();
+    updateSums();
+    clearTimeout(draftTimer);
+    draftTimer = setTimeout(() => local.set('rwq.current', q), 400);
+  }
+  function onEdit(e) {
+    const el = e.target;
+    if (el.dataset.bind && el.dataset.bind !== 'number') {
+      setPath(q, el.dataset.bind, el.type === 'checkbox' ? el.checked : el.value);
+      if (el.dataset.bind === 'date') {
+        q.validUntil = addDays(q.date, num(settings.validityDays) || 30);
+        $('#f-valid').value = q.validUntil;
+      }
+      changed();
+    } else if (el.dataset.item !== undefined) {
+      const i = Number(el.dataset.item);
+      q.items[i][el.dataset.key] = el.value;
+      $('#lt-' + i).textContent = money(lineTotal(q.items[i]));
+      changed();
+    }
+  }
+  $('#editor').addEventListener('input', onEdit);
+  $('#editor').addEventListener('change', onEdit);
+
+  $('#btn-add-item').addEventListener('click', () => {
+    q.items.push({ desc: '', qty: 1, unit: 'each', price: '' });
+    renderItems(); changed();
+    $(`#it-${q.items.length - 1}-desc`).focus();
+  });
+  $('#items').addEventListener('click', e => {
+    const btn = e.target.closest('[data-remove]');
+    if (!btn) return;
+    q.items.splice(Number(btn.dataset.remove), 1);
+    if (!q.items.length) q.items.push({ desc: '', qty: 1, unit: 'each', price: '' });
+    renderItems(); changed();
+  });
+
+  // ---------- The quote sheet (screen preview) ----------
+  const companyContact = c => [c.phone && `Tel ${c.phone}`, c.email, c.website].filter(Boolean);
+  const legalLine = c => [c.name, c.companyNo && `Company no. ${c.companyNo}`, c.vatNo && `VAT no. ${c.vatNo}`].filter(Boolean).join(' · ');
+  const filledLines = quote => quote.items.filter(it => String(it.desc || '').trim() || num(it.price));
+
+  function renderPreview() {
+    const c = settings.company, cu = q.customer, t = totals(q);
+    const lines = filledLines(q);
+    const rows = lines.length
+      ? lines.map((it, i) => `<tr>
+          <td class="c">${i + 1}</td><td>${nl(it.desc)}</td>
+          <td class="num">${qtyFmt.format(num(it.qty))}</td><td>${esc(it.unit)}</td>
+          <td class="num">${money(num(it.price))}</td><td class="num">${money(lineTotal(it))}</td></tr>`).join('')
+      : `<tr><td colspan="6" class="empty">Add your items in the form</td></tr>`;
+    const customer = [cu.company && `<b>${esc(cu.company)}</b>`, cu.name && `FAO ${esc(cu.name)}`, cu.address && nl(cu.address),
+      [cu.phone && esc(cu.phone), cu.email && esc(cu.email)].filter(Boolean).join(' · ')].filter(Boolean).join('<br>') || '<span style="color:#888888">Customer details</span>';
+    const number = q.number || nextNumber();
+
+    $('#paper').innerHTML = `
+      <div class="q-head">
+        <div>
+          <img class="q-logo" src="${LOGO}" alt="${esc(c.name)}">
+          <div class="q-company">${c.address ? nl(c.address) + '<br>' : ''}${companyContact(c).map(esc).join(' · ')}</div>
+        </div>
+        <div class="q-title">
+          <h2>QUOTATION</h2>
+          <table class="q-meta">
+            <tr><th>Quote no.</th><td>${esc(number)}</td></tr>
+            <tr><th>Date</th><td>${fmtDate(q.date)}</td></tr>
+            <tr><th>Valid until</th><td>${fmtDate(q.validUntil)}</td></tr>
+            ${q.reference ? `<tr><th>Your ref.</th><td>${esc(q.reference)}</td></tr>` : ''}
+          </table>
+        </div>
+      </div>
+      <div class="q-rule"></div>
+      <div class="q-parties">
+        <div><div class="q-label">Quotation for</div>${customer}</div>
+        <div><div class="q-label">Prepared by</div>${q.preparedBy ? esc(q.preparedBy) + '<br>' : ''}${esc(c.name)}</div>
+      </div>
+      <div class="q-table-wrap">
+        <table class="q-items">
+          <thead><tr><th class="c">#</th><th>Description</th><th class="num">Qty</th><th>Unit</th><th class="num">Unit price</th><th class="num">Total</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <table class="q-totals">
+        <tr><th>Subtotal</th><td>${money(t.sub)}</td></tr>
+        ${t.disc ? `<tr><th>Discount (${pct(q.discountPct)})</th><td>−${money(t.disc)}</td></tr>` : ''}
+        ${q.vatOn ? `<tr><th>VAT at ${pct(q.vatRate ?? settings.vatRate)}</th><td>${money(t.vat)}</td></tr>` : ''}
+        <tr class="grand"><th>Total${q.vatOn ? '' : ' (no VAT)'}</th><td>${money(t.total)}</td></tr>
+      </table>
+      ${q.notes ? `<div class="q-section"><div class="q-label">Notes</div><p>${esc(q.notes)}</p></div>` : ''}
+      ${q.terms ? `<div class="q-section q-terms"><div class="q-label">Terms</div><p>${esc(q.terms)}</p></div>` : ''}
+      <div class="q-foot"><span>${esc(legalLine(c))}</span><span>${esc(number)}</span></div>`;
+  }
+
+  // ---------- The PDF (made in the page, so it works on a phone too) ----------
+  // The built-in PDF fonts only know Western European letters, so swap the rest for plain ones.
+  function pdfText(s) {
+    return String(s ?? '')
+      .replace(/[‘’‚‛′]/g, "'").replace(/[“”„″]/g, '"')
+      .replace(/[–—−]/g, '-').replace(/…/g, '...').replace(/[•●]/g, '-')
+      .replace(/€/g, 'EUR ').replace(/ /g, ' ').replace(/\t/g, '    ')
+      .replace(/[^\n\r\x20-\x7E¡-ÿ]/g, '?');
+  }
+
+  function buildPdf(quote) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const W = 210, H = 297, M = 15, R = W - M, BOTTOM = H - 22;
+    const GREEN = [34, 119, 44], BRIGHT = [46, 154, 58], GREY = [85, 85, 85], INK = [28, 28, 28];
+    const c = settings.company, cu = quote.customer, t = totals(quote);
+    const number = quote.number;
+    const lh = pt => pt * 0.3528 * 1.35;     // line height in mm for a font size in points
+
+    function label(text, x, y) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...GREEN);
+      doc.text(text, x, y, { charSpace: 0.6 });
+    }
+    function lines(text, width) { return doc.splitTextToSize(pdfText(text), width); }
+
+    // Header: logo and company details on the left
+    const logoW = 62, logoH = logoW * LOGO_H / LOGO_W;
+    doc.addImage(LOGO, 'PNG', M, M - 2, logoW, logoH);
+    let yL = M - 2 + logoH + 5;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...GREY);
+    const contact = companyContact(c).join('   ');
+    [...String(c.address || '').split('\n'), contact].filter(s => s.trim()).forEach(s => {
+      lines(s, 95).forEach(line => { doc.text(line, M, yL); yL += lh(8.5); });
+    });
+
+    // Header: title and quote details on the right
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(22); doc.setTextColor(...GREEN);
+    const title = 'QUOTATION', cs = 1.6;
+    doc.text(title, R - (doc.getTextWidth(title) + cs * (title.length - 1)), M + 6, { charSpace: cs });
+    let yR = M + 15;
+    const meta = [['Quote no.', number], ['Date', fmtDate(quote.date)], ['Valid until', fmtDate(quote.validUntil)]];
+    if (quote.reference) meta.push(['Your ref.', quote.reference]);
+    doc.setFontSize(9);
+    meta.forEach(([k, v]) => {
+      doc.setFont('helvetica', 'bold'); doc.setTextColor(...GREY); doc.text(k, R - 64, yR);
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(...INK);
+      lines(v, 42).forEach((line, i) => { doc.text(line, R, yR + i * lh(9), { align: 'right' }); if (i) yR += lh(9); });
+      yR += 5;
+    });
+
+    // Green rule
+    let y = Math.max(yL, yR) + 2;
+    doc.setDrawColor(...BRIGHT); doc.setLineWidth(0.8); doc.line(M, y, R, y);
+    y += 8;
+
+    // Who it's for / who prepared it
+    label('QUOTATION FOR', M, y); label('PREPARED BY', M + 97, y);
+    let yA = y + 5, yB = y + 5;
+    doc.setFontSize(10); doc.setTextColor(...INK);
+    const custLines = [];
+    if (cu.company) custLines.push(['bold', cu.company]);
+    if (cu.name) custLines.push(['normal', `FAO ${cu.name}`]);
+    String(cu.address || '').split('\n').filter(s => s.trim()).forEach(s => custLines.push(['normal', s]));
+    const reach = [cu.phone, cu.email].filter(Boolean).join('   ');
+    if (reach) custLines.push(['normal', reach]);
+    if (!custLines.length) custLines.push(['normal', '-']);
+    custLines.forEach(([style, s]) => { doc.setFont('helvetica', style); lines(s, 90).forEach(line => { doc.text(line, M, yA); yA += lh(10); }); });
+    doc.setFont('helvetica', 'normal');
+    [quote.preparedBy, c.name].filter(Boolean).forEach(s => { lines(s, 85).forEach(line => { doc.text(line, M + 97, yB); yB += lh(10); }); });
+    y = Math.max(yA, yB) + 4;
+
+    // Items table (runs onto more pages by itself if it's long)
+    const items = filledLines(quote);
+    const body = items.length
+      ? items.map((it, i) => [String(i + 1), pdfText(it.desc), qtyFmt.format(num(it.qty)), pdfText(it.unit), money(num(it.price)), money(lineTotal(it))])
+      : [['', 'No items', '', '', '', '']];
+    doc.autoTable({
+      startY: y,
+      margin: { left: M, right: M, bottom: 24, top: M + 4 },
+      head: [['#', 'Description', 'Qty', 'Unit', 'Unit price', 'Total']],
+      body,
+      theme: 'plain',
+      styles: { font: 'helvetica', fontSize: 9.5, textColor: INK, valign: 'top',
+        cellPadding: { top: 2.3, bottom: 2.3, left: 2, right: 2 }, lineColor: [225, 229, 225], lineWidth: { bottom: 0.25 } },
+      headStyles: { fillColor: GREEN, textColor: [255, 255, 255], fontStyle: 'bold', lineWidth: 0 },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 9 },
+        2: { halign: 'right', cellWidth: 16 },
+        3: { cellWidth: 15 },
+        4: { halign: 'right', cellWidth: 26 },
+        5: { halign: 'right', cellWidth: 26 }
+      },
+      didParseCell: data => {
+        const col = data.column.index;
+        if (data.section === 'head') data.cell.styles.halign = col === 0 ? 'center' : ([2, 4, 5].includes(col) ? 'right' : 'left');
+        if (data.section === 'body' && col === 0) data.cell.styles.textColor = [110, 110, 110];
+      }
+    });
+    y = doc.lastAutoTable.finalY + 5;
+
+    // Totals
+    const rows = [['Subtotal', money(t.sub)]];
+    if (t.disc) rows.push([`Discount (${pct(quote.discountPct)})`, '-' + money(t.disc)]);
+    if (quote.vatOn) rows.push([`VAT at ${pct(quote.vatRate ?? settings.vatRate)}`, money(t.vat)]);
+    if (y + rows.length * 5.5 + 14 > BOTTOM) { doc.addPage(); y = M + 6; }
+    const xL = R - 78;
+    doc.setFontSize(10);
+    rows.forEach(([k, v]) => {
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(...GREY); doc.text(pdfText(k), xL + 2, y + 3.5);
+      doc.setTextColor(...INK); doc.text(v, R - 2, y + 3.5, { align: 'right' });
+      y += 5.5;
+    });
+    y += 1.5;
+    doc.setDrawColor(...GREEN); doc.setLineWidth(0.6); doc.line(xL, y, R, y);
+    y += 6;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12.5); doc.setTextColor(17, 17, 17);
+    doc.text(quote.vatOn ? 'Total' : 'Total (no VAT)', xL + 2, y);
+    doc.text(money(t.total), R - 2, y, { align: 'right' });
+    y += 11;
+
+    // Notes and terms
+    function section(heading, text, size, color) {
+      if (!String(text || '').trim()) return;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(size);
+      const ls = lines(text, R - M);
+      if (y + 6 + lh(size) > BOTTOM) { doc.addPage(); y = M + 6; }
+      label(heading, M, y); y += 5;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(size); doc.setTextColor(...color);
+      ls.forEach(line => {
+        if (y > BOTTOM) { doc.addPage(); y = M + 6; doc.setFont('helvetica', 'normal'); doc.setFontSize(size); doc.setTextColor(...color); }
+        doc.text(line, M, y); y += lh(size);
+      });
+      y += 5;
+    }
+    section('NOTES', quote.notes, 10, INK);
+    section('TERMS', quote.terms, 8.5, [68, 68, 68]);
+
+    // Footer on every page
+    const pages = doc.getNumberOfPages();
+    for (let i = 1; i <= pages; i++) {
+      doc.setPage(i);
+      doc.setDrawColor(221, 221, 221); doc.setLineWidth(0.2); doc.line(M, H - 15, R, H - 15);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(102, 102, 102);
+      doc.text(pdfText(legalLine(c)), M, H - 10);
+      doc.text(`${pdfText(number)}   Page ${i} of ${pages}`, R, H - 10, { align: 'right' });
+    }
+    doc.setProperties({ title: `Quotation ${number}`, author: c.name || '', subject: cu.company || cu.name || '', creator: 'RW Belting Quotation Maker' });
+    return doc.output('blob');
+  }
+
+  // ---------- Handing a file to you ----------
+  // From the link, the Claude page asks you to confirm the save (on iPhone this opens the share menu).
+  // Opened as a plain file, it's an ordinary browser download.
+  async function capability(name) {
+    if (!window.claude || typeof window.claude.use !== 'function') return null;
+    try { return await window.claude.use(name); } catch (e) { return null; }
+  }
+  // On a phone opened from a normal web address, the share menu is the easy way out:
+  // Mail, WhatsApp, Save to Files. `extra` adds a title and message (used by Email).
+  const isPhone = () => window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  async function shareFile(filename, data, extra) {
+    if (!isPhone() || !navigator.canShare || typeof File !== 'function') return 'skip';
+    const type = filename.endsWith('.pdf') ? 'application/pdf' : 'application/json';
+    const file = new File([data], filename, { type });
+    if (!navigator.canShare({ files: [file] })) return 'skip';
+    try { await navigator.share(Object.assign({ files: [file] }, extra || {})); return 'saved'; }
+    catch (e) { return e && e.name === 'AbortError' ? 'declined' : 'skip'; }
+  }
+  async function saveFile(filename, data, extra) {
+    if (!window.claude) {
+      const shared = await shareFile(filename, data, extra);
+      if (shared !== 'skip') return shared;
+    }
+    const downloads = await capability('downloads');
+    if (downloads) {
+      try { await downloads.save({ filename, data }); return 'saved'; }
+      catch (e) {
+        const code = e && e.code;
+        if (code === 'declined') return 'declined';
+        if (code === 'rate_limited') { toast('A save is already waiting for you to confirm.'); return 'busy'; }
+        toast('This file can’t be saved here. Try the Claude app or a computer.');
+        return 'failed';
+      }
+    }
+    if (window.claude) { toast('Saving files isn’t available here. Try the Claude app or a computer.'); return 'failed'; }
+    const url = URL.createObjectURL(data instanceof Blob ? data : new Blob([data]));
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+    return 'saved';
+  }
+
+  async function downloadPdf(extra) {
+    if (extra instanceof Event) extra = undefined;
+    if (!window.jspdf || !window.jspdf.jsPDF || !window.jspdf.jsPDF.API.autoTable) {
+      toast('The PDF maker didn’t load. Check your internet connection, then reload the page.');
+      return;
+    }
+    if (!(await saveQuote(true))) return;
+    let blob;
+    try { blob = buildPdf(q); }
+    catch (e) { console.error(e); toast('The PDF couldn’t be made. Please try again.'); return; }
+    const name = safeName(`${q.number} - ${q.customer.company || q.customer.name || 'Quotation'}`) + '.pdf';
+    const result = await saveFile(name, blob, extra);
+    if (result === 'saved') toast(`PDF ready: ${name}`);
+  }
+  $('#btn-pdf').addEventListener('click', downloadPdf);
+
+  // ---------- Saving quotes ----------
+  async function persistSettings() {
+    local.set('rwq.settings', settings);
+    if (mode === 'account') await db.doc('settings/main').set(clone(settings));
+  }
+  function upsertList(x) {
+    const i = quotes.findIndex(z => z.id === x.id);
+    if (i >= 0) quotes[i] = x; else quotes.push(x);
+  }
+  function saveError(e) {
+    const code = e && e.code;
+    if (code === 'quota_exceeded') toast('Your saved quotes are full. Delete some old ones, then save again.');
+    else if (code === 'revoked' || code === 'not_granted') toast('Saving to your account stopped working. Reload the page.');
+    else toast('Couldn’t save. Check your internet connection and try again.');
+  }
+
+  async function saveQuote(silent) {
+    const isNew = !q.number;
+    if (isNew) {
+      const n = nextNumberValue();
+      q.number = settings.prefix + String(n).padStart(4, '0');
+      settings.nextNumber = n + 1;
+    }
+    q.updated = new Date().toISOString();
+    const body = clone(q);
+    try {
+      if (mode === 'account') {
+        await db.doc('quotes/' + q.id).set(body);
+        if (isNew) await persistSettings();
+      } else {
+        upsertList(body);
+        if (!local.set('rwq.quotes', quotes)) throw new Error('storage');
+        local.set('rwq.settings', settings);
+      }
+    } catch (e) {
+      if (isNew) { q.number = ''; settings.nextNumber = Math.max(1, settings.nextNumber - 1); }
+      saveError(e); showNumber(); renderPreview();
+      return false;
+    }
+    upsertList(body);
+    local.set('rwq.current', q);
+    dirty = false;
+    showNumber(); renderPreview();
+    if (!silent) toast(`Saved ${q.number}`);
+    return true;
+  }
+
+  function loadQuote(x) {
+    q = normalise(x);
+    dirty = false;
+    local.set('rwq.current', q);
+    fillForm(); renderPreview();
+  }
+
+  // A yes/no question shown in the page (pop-up boxes are blocked here).
+  function ask(message, yesLabel = 'OK', danger = false) {
+    return new Promise(resolve => {
+      const d = $('#dlg-ask');
+      $('#ask-msg').textContent = message;
+      const yes = $('#ask-yes');
+      yes.textContent = yesLabel;
+      yes.classList.toggle('danger-solid', danger);
+      yes.classList.toggle('primary', !danger);
+      const finish = v => { d.close(); resolve(v); };
+      yes.onclick = () => finish(true);
+      $('#ask-no').onclick = () => finish(false);
+      d.oncancel = e => { e.preventDefault(); finish(false); };
+      d.showModal();
+      $('#ask-no').focus();
+    });
+  }
+  const okToLeave = async () => !dirty || ask('This quote has changes that aren’t saved. Leave it without saving?', 'Leave without saving', true);
+
+  $('#btn-save').addEventListener('click', () => saveQuote());
+  $('#btn-new').addEventListener('click', async () => {
+    if (!(await okToLeave())) return;
+    loadQuote(newQuote());
+    toast('New quote started');
+  });
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveQuote(); }
+  });
+
+  // ---------- Email ----------
+  function fillTemplate(text) {
+    const t = totals(q);
+    const values = {
+      number: q.number || nextNumber(),
+      total: money(t.total) + (q.vatOn ? ' including VAT' : ''),
+      validUntil: fmtDate(q.validUntil),
+      contact: q.customer.name || 'Sir or Madam',
+      customer: q.customer.company || q.customer.name || '',
+      preparedBy: q.preparedBy || '',
+      company: settings.company.name || ''
+    };
+    return String(text || '').replace(/\{(\w+)\}/g, (m, k) => (k in values ? values[k] : m)).replace(/\n{3,}/g, '\n\n').trim();
+  }
+  function updateMailLink() {
+    const to = $('#em-to').value.split(/[;,]/).map(s => s.trim()).filter(Boolean).map(s => encodeURIComponent(s).replace(/%40/g, '@')).join(',');
+    const body = $('#em-body').value.replace(/\r?\n/g, '\r\n');
+    $('#em-open').href = `mailto:${to}?subject=${encodeURIComponent($('#em-subject').value)}&body=${encodeURIComponent(body)}`;
+  }
+  $('#btn-email').addEventListener('click', async () => {
+    if (!(await saveQuote(true))) return;
+    $('#em-to').value = q.customer.email || '';
+    $('#em-subject').value = fillTemplate(settings.emailSubject);
+    $('#em-body').value = fillTemplate(settings.emailBody);
+    $('#em-mark').checked = q.status === 'Draft';
+    updateMailLink();
+    $('#dlg-email').showModal();
+  });
+  ['em-to', 'em-subject', 'em-body'].forEach(id => $('#' + id).addEventListener('input', updateMailLink));
+  // On a phone this shares the PDF together with the message, so Mail opens with both.
+  $('#em-pdf').addEventListener('click', () => downloadPdf({ title: $('#em-subject').value, text: $('#em-body').value }));
+  $('#em-done').addEventListener('click', async () => {
+    $('#dlg-email').close();
+    if ($('#em-mark').checked && q.status !== 'Sent') {
+      q.status = 'Sent';
+      $('#f-status').value = 'Sent';
+      if (await saveQuote(true)) toast(`${q.number} marked as Sent`);
+    }
+  });
+  // Copy buttons: copy the box's text; if the phone blocks copying, select it so you can copy by hand.
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-copy]');
+    if (!b) return;
+    const field = $('#' + b.dataset.copy);
+    const text = field.value;
+    const selectIt = () => { field.focus(); field.select(); toast('Selected. Press and hold, then choose Copy.'); };
+    try {
+      navigator.clipboard.writeText(text).then(() => toast('Copied'), selectIt);
+    } catch (err) { selectIt(); }
+  });
+
+  // ---------- Saved quotes list ----------
+  function renderList() {
+    const f = $('#q-search').value.trim().toLowerCase();
+    const list = quotes.slice()
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(b.number).localeCompare(String(a.number)))
+      .filter(x => !f || [x.number, x.customer && x.customer.company, x.customer && x.customer.name, x.reference].join(' ').toLowerCase().includes(f));
+    $('#q-list').innerHTML = list.length ? list.map(x => {
+      const st = ['Draft', 'Sent', 'Accepted', 'Declined'].includes(x.status) ? x.status : 'Draft';
+      return `<tr>
+        <td><b>${esc(x.number)}</b><div class="small">${fmtDate(x.date)}</div></td>
+        <td>${esc((x.customer && (x.customer.company || x.customer.name)) || '—')}</td>
+        <td><span class="pill ${st.toLowerCase()}">${st}</span></td>
+        <td class="num">${money(totals(normalise(x)).total)}</td>
+        <td><div class="row-actions">
+          <button class="btn" type="button" data-open="${esc(x.id)}">Open</button>
+          <button class="btn" type="button" data-dup="${esc(x.id)}">Copy</button>
+          <button class="btn danger" type="button" data-del="${esc(x.id)}">Delete</button>
+        </div></td></tr>`;
+    }).join('') : `<tr><td colspan="5" class="empty">${quotes.length ? 'No quotes match your search' : 'No saved quotes yet. Press Save on a quote to keep it here.'}</td></tr>`;
+  }
+  $('#btn-list').addEventListener('click', () => { $('#q-search').value = ''; renderList(); $('#dlg-list').showModal(); });
+  $('#q-search').addEventListener('input', renderList);
+  $('#q-list').addEventListener('click', async e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const id = b.dataset.open || b.dataset.dup || b.dataset.del;
+    const x = quotes.find(z => z.id === id);
+    if (!x) return;
+    if (b.dataset.open) {
+      if (!(await okToLeave())) return;
+      loadQuote(x); $('#dlg-list').close(); toast(`Opened ${x.number}`);
+    } else if (b.dataset.dup) {
+      if (!(await okToLeave())) return;
+      const copy = normalise(x);
+      copy.id = uid(); copy.number = ''; copy.status = 'Draft';
+      copy.date = today(); copy.validUntil = addDays(copy.date, num(settings.validityDays) || 30);
+      copy.vatRate = num(settings.vatRate);
+      loadQuote(copy); dirty = true;
+      $('#dlg-list').close(); toast(`Copied ${x.number} into a new quote`);
+    } else if (b.dataset.del) {
+      if (!(await ask(`Delete ${x.number}? This can’t be undone.`, 'Delete', true))) return;
+      try {
+        if (mode === 'account') await db.doc('quotes/' + id).delete();
+        quotes = quotes.filter(z => z.id !== id);
+        if (mode !== 'account') local.set('rwq.quotes', quotes);
+      } catch (err) { saveError(err); return; }
+      if (q.id === id) { q.number = ''; dirty = true; showNumber(); renderPreview(); }
+      renderList(); toast(`Deleted ${x.number}`);
+    }
+  });
+
+  // ---------- Backup: export / import a file ----------
+  $('#btn-export').addEventListener('click', async () => {
+    const data = { app: 'rw-quote-maker', version: 1, exported: new Date().toISOString(), settings, quotes };
+    const r = await saveFile(`rw-quotes-backup-${today()}.json`, JSON.stringify(data, null, 2));
+    if (r === 'saved') toast('Backup saved');
+  });
+  $('#btn-import').addEventListener('click', () => $('#file-import').click());
+  $('#file-import').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    let data;
+    try {
+      data = JSON.parse(await file.text());
+      if (data.app !== 'rw-quote-maker' || !Array.isArray(data.quotes)) throw new Error('not a backup');
+    } catch (err) { toast('That file isn’t a Quotation Maker backup.'); return; }
+    if (!(await ask(`Add the ${data.quotes.length} quotes and the settings from this backup? Quotes with the same number are replaced.`, 'Import'))) return;
+    const incoming = data.quotes.map(normalise);
+    const byNumber = new Map(quotes.map(x => [x.number, x.id]));
+    incoming.forEach(x => { if (x.number && byNumber.has(x.number)) x.id = byNumber.get(x.number); });
+    settings = mergeSettings(Object.assign({}, data.settings || {}));
+    try {
+      if (mode === 'account') {
+        toast(`Importing ${incoming.length} quotes…`);
+        for (const x of incoming) await db.doc('quotes/' + x.id).set(clone(x));
+      }
+      incoming.forEach(upsertList);
+      settings.nextNumber = Math.max(num(settings.nextNumber) || 1, nextNumberValue());
+      if (mode !== 'account') local.set('rwq.quotes', quotes);
+      await persistSettings();
+    } catch (err) { saveError(err); return; }
+    renderList(); showNumber(); renderPreview();
+    toast(`Imported ${incoming.length} quotes`);
+  });
+
+  // ---------- Settings ----------
+  $('#btn-settings').addEventListener('click', () => {
+    $$('[data-set]').forEach(el => { el.value = getPath(settings, el.dataset.set) ?? ''; });
+    $('#dlg-settings').showModal();
+  });
+  $('#btn-settings-save').addEventListener('click', async () => {
+    $$('[data-set]').forEach(el => {
+      const key = el.dataset.set;
+      setPath(settings, key, ['vatRate', 'validityDays', 'nextNumber'].includes(key) ? num(el.value) : el.value);
+    });
+    if (settings.nextNumber < 1) settings.nextNumber = 1;
+    if (!q.number) q.vatRate = num(settings.vatRate);
+    try { await persistSettings(); } catch (err) { saveError(err); return; }
+    $('#dlg-settings').close();
+    showNumber(); renderPreview(); updateSums();
+    toast('Settings saved');
+  });
+
+  // ---------- Phone tabs ----------
+  $$('.tabs [data-tab]').forEach(b => b.addEventListener('click', () => {
+    document.body.dataset.view = b.dataset.tab;
+    $$('.tabs [data-tab]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    window.scrollTo(0, 0);
+  }));
+
+  // ---------- Toast ----------
+  let toastTimer;
+  function toast(msg) {
+    const t = $('#toast');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+  }
+
+  // ---------- Where quotes are kept ----------
+  function setWhere() {
+    const text = mode === 'account'
+      ? 'Quotes save to your Claude account, so they show on your phone and computer.'
+      : 'Quotes save in this browser only. Use Export backup to move them to another device.';
+    $('#where').textContent = mode === 'account' ? 'Saved to your account' : 'Saved on this device';
+    $('#list-where').textContent = text;
+  }
+  function useDevice() {
+    mode = 'device';
+    quotes = (local.get('rwq.quotes', []) || []).map(normalise);
+    if (!local.set('rwq.check', 1)) {
+      const banner = $('#banner');
+      banner.textContent = 'This browser won’t let the page save. Quotes will be lost when you close it, so download each PDF.';
+      banner.hidden = false;
+    }
+    setWhere(); showNumber(); renderPreview();
+  }
+  async function connect() {
+    db = await capability('db');
+    if (!db) { useDevice(); return; }
+    mode = 'account';
+    setWhere();
+    db.doc('settings/main').onSnapshot(snap => {
+      if (!snap.exists) return;
+      settings = mergeSettings(snap.data());
+      local.set('rwq.settings', settings);
+      showNumber(); renderPreview(); updateSums();
+    }, () => {});
+    db.collection('quotes').onSnapshot(snap => {
+      quotes = snap.docs.map(d => normalise(d.data()));
+      showNumber(); renderPreview();
+      if ($('#dlg-list').open) renderList();
+    }, () => { toast('Lost touch with your saved quotes. Reload the page.'); });
+  }
+
+  // ---------- Start ----------
+  $('#bar-logo').src = LOGO;
+  fillForm();
+  renderPreview();
+  connect();
+  window.addEventListener('pagehide', () => { if (dirty) local.set('rwq.current', q); });
+})();
+</script>
+<script>
+  // Keep a copy of the app on the phone so it opens with no signal.
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+  // Ask the phone not to clear saved quotes when it's low on space.
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+</script>
+</body>
+</html>
