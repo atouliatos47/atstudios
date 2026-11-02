@@ -801,8 +801,40 @@
     try { await navigator.share(Object.assign({ files: [file] }, extra || {})); return 'saved'; }
     catch (e) { return e && e.name === 'AbortError' ? 'declined' : 'skip'; }
   }
+  // On a laptop (Chrome or Edge) open the "Save As" window, so you pick the folder
+  // and the file name yourself. It remembers the last folder you used.
+  // Browsers without it (Firefox, Safari) fall back to a normal download.
+  async function saveAsFile(filename, data) {
+    if (window.claude || isPhone() || typeof window.showSaveFilePicker !== 'function') return 'skip';
+    const isPdf = filename.endsWith('.pdf');
+    let handle;
+    try {
+      handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        id: 'rw-quotes',
+        startIn: 'documents',
+        types: [isPdf
+          ? { description: 'PDF quotation', accept: { 'application/pdf': ['.pdf'] } }
+          : { description: 'Quotes backup', accept: { 'application/json': ['.json'] } }]
+      });
+    } catch (e) {
+      return e && e.name === 'AbortError' ? 'declined' : 'skip';   // you pressed Cancel
+    }
+    try {
+      const writer = await handle.createWritable();
+      await writer.write(data instanceof Blob ? data : new Blob([data], { type: 'application/json' }));
+      await writer.close();
+      return 'saved';
+    } catch (e) {
+      console.error(e);
+      toast('Couldn’t write the file there. Try a different folder.');
+      return 'failed';
+    }
+  }
   async function saveFile(filename, data, extra) {
     if (!window.claude) {
+      const picked = await saveAsFile(filename, data);
+      if (picked !== 'skip') return picked;
       const shared = await shareFile(filename, data, extra);
       if (shared !== 'skip') return shared;
     }
