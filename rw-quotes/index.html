@@ -804,8 +804,9 @@
   // On a laptop (Chrome or Edge) open the "Save As" window, so you pick the folder
   // and the file name yourself. It remembers the last folder you used.
   // Browsers without it (Firefox, Safari) fall back to a normal download.
+  const canSaveAs = () => !window.claude && !isPhone() && typeof window.showSaveFilePicker === 'function';
   async function saveAsFile(filename, data) {
-    if (window.claude || isPhone() || typeof window.showSaveFilePicker !== 'function') return 'skip';
+    if (!canSaveAs()) return 'skip';
     const isPdf = filename.endsWith('.pdf');
     let handle;
     try {
@@ -858,19 +859,23 @@
     return 'saved';
   }
 
+  const pdfMakerReady = () => !!(window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API.autoTable);
+  // Saves the quote, makes the PDF and hands it to you.
+  // Returns what happened: 'saved', 'declined' (you pressed Cancel), or 'failed'.
   async function downloadPdf(extra) {
     if (extra instanceof Event) extra = undefined;
-    if (!window.jspdf || !window.jspdf.jsPDF || !window.jspdf.jsPDF.API.autoTable) {
+    if (!pdfMakerReady()) {
       toast('The PDF maker didn’t load. Check your internet connection, then reload the page.');
-      return;
+      return 'failed';
     }
-    if (!(await saveQuote(true))) return;
+    if (!(await saveQuote(true))) return 'failed';
     let blob;
     try { blob = buildPdf(q); }
-    catch (e) { console.error(e); toast('The PDF couldn’t be made. Please try again.'); return; }
+    catch (e) { console.error(e); toast('The PDF couldn’t be made. Please try again.'); return 'failed'; }
     const name = safeName(`${q.number} - ${q.customer.company || q.customer.name || 'Quotation'}`) + '.pdf';
     const result = await saveFile(name, blob, extra);
     if (result === 'saved') toast(`PDF ready: ${name}`);
+    return result;
   }
   $('#btn-pdf').addEventListener('click', downloadPdf);
 
@@ -947,14 +952,21 @@
   }
   const okToLeave = async () => !dirty || ask('This quote has changes that aren’t saved. Leave it without saving?', 'Leave without saving', true);
 
-  $('#btn-save').addEventListener('click', () => saveQuote());
+  // Save: on a laptop it also opens Save As for the quote's PDF.
+  // On the phone (or if the PDF maker didn't load) it just saves the quote in the app, as before.
+  async function saveButton() {
+    if (!canSaveAs() || !pdfMakerReady()) return saveQuote();
+    const result = await downloadPdf();
+    if (result === 'declined') toast(`Saved ${q.number} in the app. PDF not saved to a folder.`);
+  }
+  $('#btn-save').addEventListener('click', saveButton);
   $('#btn-new').addEventListener('click', async () => {
     if (!(await okToLeave())) return;
     loadQuote(newQuote());
     toast('New quote started');
   });
   document.addEventListener('keydown', e => {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveQuote(); }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveButton(); }
   });
 
   // ---------- Email ----------
