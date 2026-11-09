@@ -452,8 +452,8 @@
   }
 
   let settings = mergeSettings(local.get('jlcq.settings', {}));
-  let quotes = [];          // saved quotes (from your account, or this device)
-  let mode = 'starting';    // 'account' = saved in your Claude account, 'device' = this browser only
+  let quotes = [];          // saved quotes (from the server or your account, or this device)
+  let mode = 'starting';    // 'account' = saved on the atstudios server (or your Claude account), 'device' = this browser only
   let db = null;
 
   function newQuote() {
@@ -892,6 +892,12 @@
     const code = e && e.code;
     if (code === 'quota_exceeded') toast('Your saved quotes are full. Delete some old ones, then save again.');
     else if (code === 'revoked' || code === 'not_granted') toast('Saving to your account stopped working. Reload the page.');
+    else if (code === 'login') toast('Your login has run out. Reload the page and enter the email code again.');
+    else if (code === 'number_taken') {
+      // Another phone or computer saved a quote with this number a moment ago.
+      toast('Another device has just used that quote number. Press Save again to get the next one.');
+      if (db && db.refresh) db.refresh();
+    }
     else toast('Couldn’t save. Check your internet connection and try again.');
   }
 
@@ -1142,10 +1148,11 @@
 
   // ---------- Where quotes are kept ----------
   function setWhere() {
-    const text = mode === 'account'
-      ? 'Quotes save to your Claude account, so they show on your phone and computer.'
-      : 'Quotes save in this browser only. Use Export backup to move them to another device.';
-    $('#where').textContent = mode === 'account' ? 'Saved to your account' : 'Saved on this device';
+    const onServer = !!window.JLC_SAVE_TO_SERVER;
+    const text = mode !== 'account' ? 'Quotes save in this browser only. Use Export backup to move them to another device.'
+      : onServer ? 'Quotes save on the atstudios server, so they show on every phone and computer you open this on.'
+      : 'Quotes save to your Claude account, so they show on your phone and computer.';
+    $('#where').textContent = mode !== 'account' ? 'Saved on this device' : onServer ? 'Saved on the server' : 'Saved to your account';
     $('#list-where').textContent = text;
   }
   function useDevice() {
@@ -1158,22 +1165,84 @@
     }
     setWhere(); showNumber(); renderPreview();
   }
+  // ---------- Saving on the atstudios server ----------
+  // When the page comes from jlc.atstudios.uk, the server adds JLC_SAVE_TO_SERVER to it,
+  // and quotes are kept in the server's database instead of this browser.
+  // It works like the account storage: doc(...).set / .delete to save, and
+  // onSnapshot(...) to hear about changes. It asks the server again every 30 seconds,
+  // and whenever you come back to the app, so a quote saved on the phone shows on the laptop.
+  function serverDb() {
+    async function call(method, url, body) {
+      let res;
+      try {
+        res = await fetch(url, {
+          method, cache: 'no-store', credentials: 'same-origin', redirect: 'manual',
+          headers: body ? { 'Content-Type': 'application/json' } : {},
+          body: body ? JSON.stringify(body) : undefined
+        });
+      } catch (e) { throw { code: 'offline' }; }
+      // When the login runs out, Cloudflare sends you to the email-code page instead.
+      if (res.type === 'opaqueredirect' || res.status === 401 || res.status === 403) throw { code: 'login' };
+      let data = null;
+      try { data = await res.json(); } catch (e) { throw { code: res.ok ? 'login' : 'server' }; }
+      if (!res.ok) throw { code: (data && data.code) || 'server' };
+      return data;
+    }
+    const watchers = [];
+    const refresh = () => watchers.forEach(run => run());
+    setInterval(() => { if (!document.hidden) refresh(); }, 30000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+    window.addEventListener('online', refresh);
+    function watch(url, onData, onError) {
+      const run = () => call('GET', url).then(onData, onError || (() => {}));
+      watchers.push(run);
+      run();
+    }
+    return {
+      refresh,
+      doc(p) {
+        const url = 'api/' + p;
+        return {
+          set: value => call('PUT', url, value),
+          delete: () => call('DELETE', url),
+          onSnapshot: (cb, err) => watch(url, v => cb({ exists: v != null, data: () => v }), err)
+        };
+      },
+      collection(p) {
+        return {
+          onSnapshot: (cb, err) => watch('api/' + p, list => cb({ docs: (list || []).map(v => ({ data: () => v })) }), err)
+        };
+      }
+    };
+  }
+  // A message across the top while the saved quotes can't be reached.
+  function connectionLost(e) {
+    const banner = $('#banner');
+    banner.textContent = e && e.code === 'login'
+      ? 'Your login has run out. Reload the page and enter the email code again.'
+      : 'Can’t reach your saved quotes. Check your internet connection. Nothing will save until it’s back.';
+    banner.hidden = false;
+  }
+  const connectionOk = () => { $('#banner').hidden = true; };
+
   async function connect() {
-    db = await capability('db');
+    db = window.JLC_SAVE_TO_SERVER ? serverDb() : await capability('db');
     if (!db) { useDevice(); return; }
     mode = 'account';
     setWhere();
     db.doc('settings/main').onSnapshot(snap => {
+      connectionOk();
       if (!snap.exists) return;
       settings = mergeSettings(snap.data());
       local.set('jlcq.settings', settings);
       showNumber(); renderPreview(); updateSums();
-    }, () => {});
+    }, connectionLost);
     db.collection('quotes').onSnapshot(snap => {
+      connectionOk();
       quotes = snap.docs.map(d => normalise(d.data()));
       showNumber(); renderPreview();
       if ($('#dlg-list').open) renderList();
-    }, () => { toast('Lost touch with your saved quotes. Reload the page.'); });
+    }, connectionLost);
   }
 
   // ---------- Start ----------

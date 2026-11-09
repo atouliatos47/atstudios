@@ -4,7 +4,7 @@
 // (so updates show up straight away); when offline it uses the saved copy.
 
 const PREFIX = 'jlcox-quotes-';
-const CACHE = PREFIX + 'v1';   // change the number when you want to force a fresh copy
+const CACHE = PREFIX + 'v2';   // change the number when you want to force a fresh copy
 const FILES = [
   './',
   './index.html',
@@ -37,7 +37,10 @@ self.addEventListener('activate', event => {
 // Every request: try the internet first, fall back to the saved copy.
 self.addEventListener('fetch', event => {
   const req = event.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  const url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== self.location.origin) return;
+  // Saved quotes always come straight from the server – never from a saved copy.
+  if (url.pathname.includes('/api/')) return;
 
   event.respondWith(
     fetch(req)
