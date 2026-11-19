@@ -1,0 +1,16 @@
+{
+  "name": "Word to PDF",
+  "short_name": "Word to PDF",
+  "description": "Open a Word file (.docx), check it, and save it as a PDF. The file stays on your computer.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eceeea",
+  "theme_color": "#243547",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

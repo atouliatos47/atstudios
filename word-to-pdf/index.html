@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word to PDF</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<!-- App files: these let Chrome and Edge install the page as a desktop app -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#243547">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+/* Layout: header and file picker on top, then the Word document shown as
+   white pages. When printing, everything except the pages is hidden. */
+:root {
+  --bg: #eceeea;
+  --surface: #ffffff;
+  --ink: #243547;
+  --muted: #5b6672;
+  --line: #d3d8d6;
+  --accent: #95c11f;
+  --on-accent: #1b2733;
+  --danger: #b42318;
+  --font-display: "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
+  --font-body: "Barlow", "Segoe UI", Arial, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111820;
+    --surface: #1a2430;
+    --ink: #e5e9ed;
+    --muted: #9aa5b1;
+    --line: #2f3c4a;
+    --accent: #a3cf2a;
+    --on-accent: #111820;
+    --danger: #f97066;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111820;
+  --surface: #1a2430;
+  --ink: #e5e9ed;
+  --muted: #9aa5b1;
+  --line: #2f3c4a;
+  --accent: #a3cf2a;
+  --on-accent: #111820;
+  --danger: #f97066;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.wrap {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px 16px 8px;
+  display: grid;
+  gap: 16px;
+}
+
+.head-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+header h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 2.1rem;
+  line-height: 1.05;
+  margin: 0;
+  text-wrap: balance;
+}
+header p { margin: 6px 0 0; color: var(--muted); max-width: 62ch; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+/* Drop zone */
+.drop {
+  border: 2px dashed var(--line);
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 36px 16px;
+  text-align: center;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.drop strong { font-family: var(--font-display); font-size: 1.5rem; font-weight: 600; }
+.drop .small { margin: 0; color: var(--muted); font-size: 0.9rem; max-width: 52ch; }
+.drop.compact { padding: 14px 16px; grid-auto-flow: column; justify-content: start; align-items: center; text-align: left; }
+.drop.compact strong { font-size: 1.1rem; }
+.drop.compact .small { display: none; }
+
+/* Toolbar shown once a file is open */
+.toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.file-info { margin-right: auto; display: grid; min-width: 0; }
+.file-info strong { overflow-wrap: anywhere; }
+.file-info span { color: var(--muted); font-size: 0.9rem; }
+.hint { width: 100%; margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+button, .file-btn {
+  font: inherit;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+}
+button.primary, .file-btn.primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+.file-btn { position: relative; overflow: hidden; display: inline-block; }
+.file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.file-btn:focus-within, :focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+.status { margin: 0; font-size: 0.95rem; }
+.status:empty { display: none; }
+.status[data-kind="error"] { color: var(--danger); }
+
+/* The Word pages */
+#doc-area { overflow-x: auto; padding: 0 0 40px; }
+#doc .docx-wrapper {
+  background: transparent;
+  padding: 8px 16px 0;
+  zoom: var(--zoom, 1);
+}
+#doc .docx-wrapper > section.docx {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18), 0 6px 20px rgba(0, 0, 0, 0.08);
+  margin-bottom: 24px;
+}
+
+@media (max-width: 520px) {
+  header h1 { font-size: 1.8rem; }
+}
+
+/* PRINT: only the Word pages, no app around them */
+@media print {
+  .no-print { display: none !important; }
+  html, body { background: #ffffff !important; }
+  #doc-area { overflow: visible; padding: 0; }
+  #doc .docx-wrapper {
+    background: none !important;
+    padding: 0 !important;
+    display: block !important;
+    zoom: 1 !important;
+  }
+  /* Let the printer split the text into pages. The page size and margins
+     come from the Word file (see the @page rule made in applyPageSize). */
+  #doc .docx-wrapper > section.docx {
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: auto !important;
+    min-height: 0 !important;
+    display: block !important;
+    overflow: visible !important;
+  }
+  #doc .docx-wrapper > section.docx + section.docx { break-before: page; }
+  #doc section.docx > header,
+  #doc section.docx > footer { margin: 0 !important; min-height: 0 !important; }
+}
+</style>
+<!-- Filled in after a file opens: the page size and margins from Word -->
+<style id="page-rule"></style>
+</head>
+<body>
+<main class="wrap no-print">
+  <header>
+    <div class="head-row">
+      <h1>Word to PDF</h1>
+      <!-- Hidden until the browser says the app can be installed -->
+      <button type="button" class="primary" id="install" hidden>Install app</button>
+    </div>
+    <p>Open a Word file, check how it looks, then save it as a PDF. The file stays on this computer. Nothing is uploaded.</p>
+  </header>
+
+  <section class="card drop" id="drop" aria-label="Choose a Word file">
+    <strong id="drop-title">Drop a Word file here</strong>
+    <label class="file-btn primary" for="file-input">Choose Word file
+      <input id="file-input" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+    </label>
+    <p class="small">Works with .docx files. For an old .doc file, open it in Word, choose Save As, pick Word Document (.docx), then open it here.</p>
+  </section>
+
+  <section class="card toolbar" id="toolbar" hidden>
+    <div class="file-info">
+      <strong id="file-name"></strong>
+      <span id="file-meta"></span>
+    </div>
+    <button type="button" class="primary" id="save-pdf">Save as PDF</button>
+    <p class="hint">In the window that opens, set <b>Destination</b> to <b>Save as PDF</b>, then press <b>Save</b>. Chrome remembers this for next time.</p>
+  </section>
+
+  <p class="status" id="status" role="status" aria-live="polite"></p>
+</main>
+
+<div id="doc-area" hidden>
+  <div id="doc"></div>
+</div>
+<div id="doc-styles" hidden></div>
+
+<!-- JSZip opens the .docx file (it is really a zip of XML files).
+     docx-preview turns the Word XML into web pages. Both sit next to this page. -->
+<script src="jszip.min.js"></script>
+<script src="docx-preview.min.js"></script>
+<script>
+// ---------------------------------------------------------------
+// 1. SETUP
+// ---------------------------------------------------------------
+const $ = (id) => document.getElementById(id);
+
+// How docx-preview should draw the Word file
+const RENDER_OPTIONS = {
+  inWrapper: true,          // put the pages in a grey "desk" wrapper
+  ignoreWidth: false,       // keep Word's page width
+  ignoreHeight: false,      // keep Word's page height
+  ignoreFonts: false,       // use the fonts inside the file if there are any
+  breakPages: true,         // start a new page where Word has a page break
+  ignoreLastRenderedPageBreak: true,
+  experimental: true,       // better tab stops
+  renderHeaders: true,
+  renderFooters: true,
+  renderFootnotes: true,
+  renderEndnotes: true,
+  useBase64URL: true        // pictures are kept inside the page, so they print
+};
+
+let currentName = 'document';   // file name without ".docx"
+
+function showStatus(message, kind = 'ok') {
+  const s = $('status');
+  s.textContent = message;
+  s.dataset.kind = kind;
+}
+
+function fileSize(bytes) {
+  return bytes < 1024 * 1024
+    ? Math.max(1, Math.round(bytes / 1024)) + ' KB'
+    : (bytes / 1024 / 1024).toFixed(1) + ' MB';
+}
+
+// ---------------------------------------------------------------
+// 2. OPEN AND SHOW A WORD FILE
+// ---------------------------------------------------------------
+async function openFile(file) {
+  if (!file) return;
+  const name = file.name || 'document.docx';
+
+  if (/\.doc$/i.test(name)) {
+    showStatus('This is an old .doc file. Open it in Word, choose Save As, pick Word Document (.docx), then open the new file here.', 'error');
+    return;
+  }
+  if (!/\.docx$/i.test(name)) {
+    showStatus('Please choose a Word file whose name ends in .docx.', 'error');
+    return;
+  }
+  if (!window.docx || !window.JSZip) {
+    showStatus('The app did not load properly. Reload the page and try again.', 'error');
+    return;
+  }
+
+  showStatus('Opening ' + name + '...');
+  try {
+    $('doc').innerHTML = '';
+    $('doc-styles').innerHTML = '';
+    await window.docx.renderAsync(file, $('doc'), $('doc-styles'), RENDER_OPTIONS);
+  } catch (err) {
+    $('doc-area').hidden = true;
+    $('toolbar').hidden = true;
+    showStatus('This file could not be opened. It may be damaged or password protected.', 'error');
+    return;
+  }
+
+  currentName = name.replace(/\.docx$/i, '');
+  applyPageSize();
+  $('file-name').textContent = name;
+  $('file-meta').textContent = fileSize(file.size);
+  $('toolbar').hidden = false;
+  $('doc-area').hidden = false;
+  $('drop').classList.add('compact');
+  $('drop-title').textContent = 'Open a different file';
+  fitToScreen();
+  showStatus('');
+}
+
+// Word stores the paper size and margins in the file. docx-preview puts them
+// on each page as width, height and padding. We copy them into a print rule,
+// so the PDF gets the same paper size and margins as Word.
+function applyPageSize() {
+  const page = $('doc').querySelector('section.docx');
+  if (!page) return;
+  const s = page.style;
+  const width = s.width;
+  const height = s.minHeight || s.height;
+  const margins = [s.paddingTop, s.paddingRight, s.paddingBottom, s.paddingLeft];
+  if (!width || !height || margins.some((m) => !m)) {
+    $('page-rule').textContent = '@page { size: A4; margin: 20mm; }';
+    return;
+  }
+  $('page-rule').textContent = '@page { size: ' + width + ' ' + height + '; margin: ' + margins.join(' ') + '; }';
+}
+
+// On a narrow window, shrink the pages so a whole page width fits
+function fitToScreen() {
+  const page = $('doc').querySelector('section.docx');
+  if (!page) return;
+  const available = $('doc-area').clientWidth - 32;
+  const pageWidth = page.offsetWidth;
+  const zoom = pageWidth > available ? available / pageWidth : 1;
+  $('doc').style.setProperty('--zoom', zoom.toFixed(3));
+}
+window.addEventListener('resize', fitToScreen);
+
+// ---------------------------------------------------------------
+// 3. SAVE AS PDF (using the browser's own print to PDF)
+// ---------------------------------------------------------------
+function savePdf() {
+  const oldTitle = document.title;
+  document.title = currentName;          // Chrome uses this as the PDF file name
+  window.addEventListener('afterprint', () => { document.title = oldTitle; }, { once: true });
+  window.print();
+}
+$('save-pdf').addEventListener('click', savePdf);
+
+// ---------------------------------------------------------------
+// 4. CHOOSE OR DROP A FILE
+// ---------------------------------------------------------------
+$('file-input').addEventListener('change', (e) => {
+  openFile(e.target.files[0]);
+  e.target.value = '';                    // so the same file can be chosen again
+});
+
+// Dropping anywhere on the window works
+let dragDepth = 0;
+window.addEventListener('dragenter', (e) => {
+  e.preventDefault();
+  dragDepth++;
+  $('drop').classList.add('over');
+});
+window.addEventListener('dragleave', () => {
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (!dragDepth) $('drop').classList.remove('over');
+});
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dragDepth = 0;
+  $('drop').classList.remove('over');
+  const file = e.dataTransfer && e.dataTransfer.files[0];
+  openFile(file);
+});
+
+// ---------------------------------------------------------------
+// 5. INSTALL AS AN APP
+// ---------------------------------------------------------------
+let installEvent = null;
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();      // stop the browser's own pop-up
+  installEvent = event;        // keep it for when the button is pressed
+  $('install').hidden = false;
+});
+
+$('install').addEventListener('click', async () => {
+  if (!installEvent) return;
+  installEvent.prompt();
+  const choice = await installEvent.userChoice;
+  installEvent = null;
+  $('install').hidden = true;
+  if (choice.outcome !== 'accepted') showStatus('Install cancelled. You can install it later from the address bar.');
+});
+
+window.addEventListener('appinstalled', () => {
+  $('install').hidden = true;
+  showStatus('Installed. Open Word to PDF from your Start menu or desktop.');
+});
+
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  navigator.serviceWorker.register('sw.js').catch(() => {
+    // Not available: the app still works, just not offline.
+  });
+}
+</script>
+</body>
+</html>
