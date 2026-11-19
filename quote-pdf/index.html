@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quote PDF Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<!-- App files: these let Chrome and Edge install the page as a desktop app -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#243547">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+/* Layout: one column of numbered form sections, with a sticky bar at the bottom
+   that always shows the running total and the Download PDF button.
+   Colours follow the Clamason navy and lime used in the Performance Hub. */
+:root {
+  --bg: #eceeea;
+  --surface: #ffffff;
+  --ink: #243547;
+  --muted: #5b6672;
+  --line: #d3d8d6;
+  --accent: #95c11f;
+  --on-accent: #1b2733;
+  --danger: #b42318;
+  --font-display: "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
+  --font-body: "Barlow", "Segoe UI", Arial, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111820;
+    --surface: #1a2430;
+    --ink: #e5e9ed;
+    --muted: #9aa5b1;
+    --line: #2f3c4a;
+    --accent: #a3cf2a;
+    --on-accent: #111820;
+    --danger: #f97066;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111820;
+  --surface: #1a2430;
+  --ink: #e5e9ed;
+  --muted: #9aa5b1;
+  --line: #2f3c4a;
+  --accent: #a3cf2a;
+  --on-accent: #111820;
+  --danger: #f97066;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 16px 32px;
+  display: grid;
+  gap: 16px;
+}
+
+header h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 2.1rem;
+  line-height: 1.05;
+  margin: 0;
+  text-wrap: balance;
+}
+header p { margin: 6px 0 0; color: var(--muted); max-width: 62ch; }
+.head-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+.card h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.3rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.card h2 .step {
+  display: inline-grid;
+  place-items: center;
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.85rem;
+  letter-spacing: 0;
+}
+.card .hint { margin: -6px 0 0; color: var(--muted); font-size: 0.9rem; }
+
+.grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.span-2 { grid-column: 1 / -1; }
+
+.field {
+  display: grid;
+  gap: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+input, textarea, select {
+  font: inherit;
+  font-size: 1rem;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 9px 10px;
+  width: 100%;
+  min-width: 0;
+}
+textarea { resize: vertical; }
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: 0.7; }
+
+:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+button {
+  font: inherit;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+}
+button.primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+button.link {
+  border: 0;
+  padding: 4px 6px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+button.danger { color: var(--danger); }
+button.armed { border-color: var(--danger); color: var(--danger); }
+
+/* Line items */
+.items { display: grid; gap: 12px; }
+.item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+.item-head { display: flex; justify-content: space-between; align-items: center; }
+.item-no { font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; }
+.item-nums {
+  display: grid;
+  grid-template-columns: 0.8fr 0.9fr 1.2fr 1.2fr;
+  gap: 10px;
+  align-items: end;
+}
+.line-total { display: grid; gap: 4px; font-size: 0.875rem; font-weight: 500; color: var(--muted); }
+.line-total output {
+  display: block;
+  padding: 9px 0;
+  text-align: right;
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Totals summary */
+.sum { margin: 0; display: grid; gap: 6px; }
+.sum div { display: flex; justify-content: space-between; gap: 12px; font-variant-numeric: tabular-nums; }
+.sum dt { color: var(--muted); }
+.sum dd { margin: 0; font-weight: 500; }
+.sum .grand {
+  border-top: 2px solid var(--ink);
+  padding-top: 8px;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+.sum .grand dt { color: var(--ink); }
+
+/* Sticky bar */
+.bar {
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding: 10px 16px 12px;
+  z-index: 5;
+}
+.bar-inner {
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.bar-total { margin-right: auto; display: grid; line-height: 1.1; }
+.bar-total span { font-size: 0.8rem; color: var(--muted); }
+.bar-total strong {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+}
+.status { width: 100%; margin: 0; font-size: 0.9rem; }
+.status:empty { display: none; }
+.status[data-kind="error"] { color: var(--danger); }
+
+@media (max-width: 520px) {
+  .grid { grid-template-columns: 1fr; }
+  .item-nums { grid-template-columns: 1fr 1fr; }
+  header h1 { font-size: 1.8rem; }
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <div class="head-row">
+      <h1>Quote PDF Maker</h1>
+      <!-- Hidden until the browser says the app can be installed -->
+      <button type="button" class="primary" id="install" hidden>Install app</button>
+    </div>
+    <p>Turn a quote that arrived as a plain email into a tidy PDF for filing. Your own details are kept on this device. Press New quote to clear the rest.</p>
+  </header>
+
+  <!-- 1. SUPPLIER -->
+  <section class="card" aria-labelledby="h-sup">
+    <h2 id="h-sup"><span class="step">1</span>Supplier</h2>
+    <p class="hint">The company that sent you the quote.</p>
+    <div class="grid">
+      <label class="field span-2" for="sup-name">Supplier name
+        <input id="sup-name" placeholder="e.g. Worcester Presses Ltd">
+      </label>
+      <label class="field" for="sup-contact">Contact person
+        <input id="sup-contact" placeholder="e.g. Russell">
+      </label>
+      <label class="field" for="sup-phone">Phone
+        <input id="sup-phone" type="tel" placeholder="e.g. 01905 000000">
+      </label>
+      <label class="field span-2" for="sup-email">Email
+        <input id="sup-email" type="email" placeholder="e.g. russell@example.co.uk">
+      </label>
+      <label class="field span-2" for="sup-address">Address (optional)
+        <textarea id="sup-address" rows="3" placeholder="Street&#10;Town&#10;Postcode"></textarea>
+      </label>
+    </div>
+  </section>
+
+  <!-- 2. QUOTE FOR -->
+  <section class="card" aria-labelledby="h-me">
+    <h2 id="h-me"><span class="step">2</span>Quote for</h2>
+    <p class="hint">Your details. These stay filled in for the next quote.</p>
+    <div class="grid">
+      <label class="field" for="my-company">Company
+        <input id="my-company" autocomplete="organization" placeholder="e.g. Clamason">
+      </label>
+      <label class="field" for="my-name">Your name
+        <input id="my-name" autocomplete="name" placeholder="e.g. Andreas Touliatos">
+      </label>
+      <label class="field span-2" for="my-dept">Department
+        <input id="my-dept" placeholder="e.g. Maintenance">
+      </label>
+      <label class="field span-2" for="my-address">Address (optional)
+        <textarea id="my-address" rows="3" placeholder="Street&#10;Town&#10;Postcode"></textarea>
+      </label>
+    </div>
+  </section>
+
+  <!-- 3. QUOTE DETAILS -->
+  <section class="card" aria-labelledby="h-quote">
+    <h2 id="h-quote"><span class="step">3</span>Quote details</h2>
+    <div class="grid">
+      <label class="field" for="q-ref">Supplier's quote ref.
+        <input id="q-ref" placeholder="e.g. Q12345 (if they gave one)">
+      </label>
+      <label class="field" for="q-received">Email date
+        <input id="q-received" type="date">
+      </label>
+      <label class="field" for="q-valid">Valid until (if stated)
+        <input id="q-valid" type="date">
+      </label>
+      <label class="field" for="q-asset">Machine or asset
+        <input id="q-asset" placeholder="e.g. Kaiser 1">
+      </label>
+      <label class="field span-2" for="q-subject">Subject or job
+        <input id="q-subject" placeholder="e.g. Replace flywheel bearings">
+      </label>
+    </div>
+  </section>
+
+  <!-- 4. ITEMS -->
+  <section class="card" aria-labelledby="h-items">
+    <h2 id="h-items"><span class="step">4</span>Items</h2>
+    <p class="hint">Copy each line and price from the email. If they only gave one price, use one line.</p>
+    <div class="items" id="items"></div>
+    <div><button type="button" id="add-item">+ Add item</button></div>
+  </section>
+
+  <!-- 5. TOTALS -->
+  <section class="card" aria-labelledby="h-totals">
+    <h2 id="h-totals"><span class="step">5</span>Totals</h2>
+    <div class="grid">
+      <label class="field" for="currency">Currency
+        <select id="currency">
+          <option value="£">£ Pound</option>
+          <option value="€">€ Euro</option>
+          <option value="$">$ Dollar</option>
+          <option value="">No symbol</option>
+        </select>
+      </label>
+      <label class="field" for="vat-rate">VAT %
+        <input id="vat-rate" inputmode="decimal" placeholder="0 for no VAT">
+      </label>
+      <label class="field" for="discount">Discount %
+        <input id="discount" inputmode="decimal" placeholder="Leave empty for none">
+      </label>
+    </div>
+    <dl class="sum">
+      <div><dt>Subtotal</dt><dd id="sum-sub">£0.00</dd></div>
+      <div id="row-discount" hidden><dt id="lbl-discount">Discount</dt><dd id="sum-discount">£0.00</dd></div>
+      <div id="row-vat"><dt id="lbl-vat">VAT</dt><dd id="sum-vat">£0.00</dd></div>
+      <div class="grand"><dt>Total</dt><dd id="sum-total">£0.00</dd></div>
+    </dl>
+  </section>
+
+  <!-- 6. TERMS, NOTES AND EMAIL -->
+  <section class="card" aria-labelledby="h-notes">
+    <h2 id="h-notes"><span class="step">6</span>Terms, notes and email</h2>
+    <div class="grid">
+      <label class="field" for="lead-time">Lead time or delivery
+        <input id="lead-time" placeholder="e.g. 2 weeks from order">
+      </label>
+      <label class="field" for="payment-terms">Payment terms
+        <input id="payment-terms" placeholder="e.g. 30 days end of month">
+      </label>
+      <label class="field span-2" for="notes">Notes
+        <textarea id="notes" rows="3" placeholder="e.g. Price excludes fitting. Engineer visit to be booked separately."></textarea>
+      </label>
+      <label class="field span-2" for="email-text">Original email text (optional)
+        <textarea id="email-text" rows="8" placeholder="Paste the email here. It is added at the end of the PDF so the supplier's exact words are kept."></textarea>
+      </label>
+    </div>
+  </section>
+</main>
+
+<div class="bar">
+  <div class="bar-inner">
+    <div class="bar-total"><span>Quote total</span><strong id="bar-total">£0.00</strong></div>
+    <button type="button" id="new-quote">New quote</button>
+    <button type="button" class="primary" id="download">Download PDF</button>
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+  </div>
+</div>
+
+<!-- jsPDF draws the PDF file in the browser. Nothing is sent to a server.
+     It sits next to this page, so the installed app works offline. -->
+<script src="jspdf.umd.min.js"></script>
+<script>
+// ---------------------------------------------------------------
+// 1. SETUP: names of all the simple fields on the page
+// ---------------------------------------------------------------
+const $ = (id) => document.getElementById(id);
+
+const STORE_KEY = 'supplierQuote.v1';
+
+// These fields stay filled when you press "New quote"
+const KEEP_FIELDS = ['my-company', 'my-name', 'my-dept', 'my-address', 'currency', 'vat-rate'];
+
+// These fields are cleared when you press "New quote"
+const JOB_FIELDS = [
+  'sup-name', 'sup-contact', 'sup-phone', 'sup-email', 'sup-address',
+  'q-ref', 'q-received', 'q-valid', 'q-asset', 'q-subject',
+  'discount', 'lead-time', 'payment-terms', 'notes', 'email-text'
+];
+const ALL_FIELDS = [...KEEP_FIELDS, ...JOB_FIELDS];
+
+let items = [];   // the line items: [{ id, desc, qty, unit, price }]
+let nextItemId = 1;
+
+// ---------------------------------------------------------------
+// 2. SMALL HELPERS
+// ---------------------------------------------------------------
+function readField(id) {
+  return $(id).value;
+}
+function writeField(id, value) {
+  $(id).value = value ?? '';
+}
+
+// Turns "1,250.50" or "£12" into a number. Anything else becomes 0.
+function toNumber(value) {
+  const n = parseFloat(String(value ?? '').replace(/[^0-9.\-]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+// Rounds to 2 decimal places (pennies)
+function round2(n) {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+function money(n, cur) {
+  const text = Math.abs(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (n < 0 ? '-' : '') + cur + text;
+}
+function plainNumber(n) {
+  return n.toLocaleString('en-GB', { maximumFractionDigits: 3 });
+}
+
+function isoDate(d) {
+  const z = (n) => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate());
+}
+// "2026-11-18" becomes "18/11/2026"
+function ukDate(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return d + '/' + m + '/' + y;
+}
+
+// The built-in PDF fonts only know Western European letters.
+// This keeps normal text (including £ € ° and curly quotes) and drops
+// anything else, like emoji, so the PDF never shows strange symbols.
+function pdfSafe(text) {
+  return String(text ?? '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/\t/g, '    ')
+    .replace(/[   ]/g, ' ')
+    .replace(/[^\n\x20-\x7E¡-ÿ€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ]/g, '');
+}
+
+function showStatus(message, kind = 'ok') {
+  const s = $('status');
+  s.textContent = message;
+  s.dataset.kind = kind;
+  clearTimeout(showStatus.timer);
+  showStatus.timer = setTimeout(() => { s.textContent = ''; }, 7000);
+}
+
+// ---------------------------------------------------------------
+// 3. SAVE AND LOAD (only on this device, in the browser)
+// ---------------------------------------------------------------
+function saveDraft() {
+  try {
+    const fields = {};
+    ALL_FIELDS.forEach((id) => { fields[id] = readField(id); });
+    localStorage.setItem(STORE_KEY, JSON.stringify({ fields, items }));
+  } catch (err) {
+    // Storage is not available here. The page still works, it just will not remember.
+  }
+}
+
+function loadDraft() {
+  let saved = null;
+  try {
+    saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+  } catch (err) {
+    saved = null;
+  }
+
+  if (saved && saved.fields) {
+    ALL_FIELDS.forEach((id) => {
+      if (id in saved.fields) writeField(id, saved.fields[id]);
+    });
+    items = (saved.items || []).map((it) => ({ ...newItem(), ...it, id: nextItemId++ }));
+  } else {
+    // First visit: sensible starting values
+    writeField('vat-rate', '20');
+  }
+
+  if (!readField('q-received')) writeField('q-received', isoDate(new Date()));
+  if (!items.length) items.push(newItem());
+}
+
+// ---------------------------------------------------------------
+// 4. LINE ITEMS
+// ---------------------------------------------------------------
+function newItem() {
+  return { id: nextItemId++, desc: '', qty: '1', unit: '', price: '' };
+}
+
+function renderItems() {
+  const list = $('items');
+  list.innerHTML = '';
+  items.forEach((item, index) => list.appendChild(itemRow(item, index)));
+  updateTotals();
+}
+
+function itemRow(item, index) {
+  const row = document.createElement('div');
+  row.className = 'item';
+  const p = 'item-' + item.id;
+  row.innerHTML = `
+    <div class="item-head">
+      <span class="item-no">Item ${index + 1}</span>
+      <button type="button" class="link danger" data-remove>Remove</button>
+    </div>
+    <label class="field" for="${p}-desc">Description
+      <textarea id="${p}-desc" rows="2" data-key="desc" placeholder="e.g. Supply 2 x flywheel bearings"></textarea>
+    </label>
+    <div class="item-nums">
+      <label class="field" for="${p}-qty">Qty
+        <input id="${p}-qty" data-key="qty" inputmode="decimal" autocomplete="off">
+      </label>
+      <label class="field" for="${p}-unit">Unit
+        <input id="${p}-unit" data-key="unit" placeholder="e.g. pcs">
+      </label>
+      <label class="field" for="${p}-price">Unit price
+        <input id="${p}-price" data-key="price" inputmode="decimal" placeholder="0.00" autocomplete="off">
+      </label>
+      <div class="line-total"><span>Line total</span><output id="${p}-total">0.00</output></div>
+    </div>`;
+
+  // Fill the boxes and listen for typing
+  row.querySelectorAll('[data-key]').forEach((el) => {
+    const key = el.dataset.key;
+    el.value = item[key] ?? '';
+    el.addEventListener('input', () => {
+      item[key] = el.value;
+      updateTotals();
+      saveDraft();
+    });
+  });
+
+  row.querySelector('[data-remove]').addEventListener('click', () => {
+    items = items.filter((x) => x !== item);
+    if (!items.length) items.push(newItem());
+    renderItems();
+    saveDraft();
+  });
+  return row;
+}
+
+// ---------------------------------------------------------------
+// 5. TOTALS
+// ---------------------------------------------------------------
+function calcTotals() {
+  const lines = items.map((it) => round2(toNumber(it.qty) * toNumber(it.price)));
+  const subtotal = round2(lines.reduce((a, b) => a + b, 0));
+  const discountRate = toNumber(readField('discount'));
+  const discount = round2(subtotal * discountRate / 100);
+  const net = round2(subtotal - discount);
+  const vatRate = toNumber(readField('vat-rate'));
+  const vat = round2(net * vatRate / 100);
+  return { lines, subtotal, discountRate, discount, net, vatRate, vat, total: round2(net + vat) };
+}
+
+function updateTotals() {
+  const cur = readField('currency');
+  const t = calcTotals();
+
+  items.forEach((it, i) => {
+    const out = $('item-' + it.id + '-total');
+    if (out) out.textContent = money(t.lines[i], cur);
+  });
+
+  $('sum-sub').textContent = money(t.subtotal, cur);
+
+  $('row-discount').hidden = !t.discount;
+  $('lbl-discount').textContent = 'Discount (' + plainNumber(t.discountRate) + '%)';
+  $('sum-discount').textContent = money(-t.discount, cur);
+
+  $('row-vat').hidden = !t.vatRate;
+  $('lbl-vat').textContent = 'VAT (' + plainNumber(t.vatRate) + '%)';
+  $('sum-vat').textContent = money(t.vat, cur);
+
+  $('sum-total').textContent = money(t.total, cur);
+  $('bar-total').textContent = money(t.total, cur);
+}
+
+// ---------------------------------------------------------------
+// 6. BUILD THE PDF (A4, measured in millimetres)
+// ---------------------------------------------------------------
+function collectQuote() {
+  const q = {};
+  ALL_FIELDS.forEach((id) => { q[id] = pdfSafe(readField(id)).trim(); });
+  return q;
+}
+
+function buildPdf(q) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const t = calcTotals();
+  const cur = q.currency;
+
+  const W = 210, H = 297, M = 15, R = W - M, BOTTOM = H - 22;
+  const INK = [27, 36, 48], GREY = [96, 106, 117], RULE = [214, 219, 222], ZEBRA = [244, 246, 247];
+  const NAVY = [36, 53, 71], LIME = [149, 193, 31], WHITE = [255, 255, 255];
+  const PT = 0.3528;                       // 1 point = 0.3528 mm
+  const lineH = (size) => size * PT * 1.3; // height of one line of text
+
+  let y = M; // where the next thing is drawn, from the top of the page
+
+  // Writes text that wraps inside "width". Returns the y below the text.
+  function block(text, x, top, width, size, style = 'normal', color = INK, align = 'left') {
+    if (!text) return top;
+    doc.setFont('helvetica', style);
+    doc.setFontSize(size);
+    doc.setTextColor(...color);
+    const lines = doc.splitTextToSize(String(text), width);
+    lines.forEach((line, i) => doc.text(line, x, top + size * PT + lineH(size) * i, { align }));
+    return top + lineH(size) * lines.length;
+  }
+
+  // Starts a new page if there is not enough room left
+  function ensure(space) {
+    if (y + space > BOTTOM) {
+      doc.addPage();
+      y = M;
+      return true;
+    }
+    return false;
+  }
+
+  doc.setProperties({
+    title: 'Supplier quotation ' + [q['sup-name'], q['q-ref']].filter(Boolean).join(' '),
+    author: q['my-name']
+  });
+
+  // --- Header, left: title and where it came from ---
+  let leftY = M;
+  leftY = block('SUPPLIER QUOTATION', M, leftY, 105, 20, 'bold', NAVY) + 1;
+  const source = 'Record made from an email quotation' +
+    (q['q-received'] ? ' dated ' + ukDate(q['q-received']) : '') + '.';
+  leftY = block(source, M, leftY, 100, 9, 'normal', GREY);
+
+  // --- Header, right: quote details ---
+  let rightY = M + 1;
+  const meta = [
+    ['Supplier ref.', q['q-ref']],
+    ['Email date', ukDate(q['q-received'])],
+    ['Valid until', ukDate(q['q-valid'])],
+    ['Machine / asset', q['q-asset']],
+    ['Filed by', q['my-name']]
+  ].filter((row) => row[1]);
+  meta.forEach(([label, value]) => {
+    block(label, R - 72, rightY, 30, 9, 'normal', GREY);
+    rightY = block(value, R, rightY, 40, 9, 'bold', INK, 'right') + 0.8;
+  });
+
+  y = Math.max(leftY, rightY) + 5;
+
+  // Navy line with a short lime piece, like the Hub
+  doc.setLineWidth(0.8);
+  doc.setDrawColor(...NAVY);
+  doc.line(M, y, R, y);
+  doc.setDrawColor(...LIME);
+  doc.line(M, y, M + 30, y);
+  y += 6;
+
+  // --- Two columns: supplier and quote for ---
+  const colW = 85, col2 = M + 95;
+  let supY = block('SUPPLIER', M, y, colW, 8, 'bold', NAVY) + 1;
+  supY = block(q['sup-name'] || '-', M, supY, colW, 11, 'bold');
+  const supLines = [
+    q['sup-contact'] && 'Contact: ' + q['sup-contact'],
+    q['sup-phone'] && 'Tel: ' + q['sup-phone'],
+    q['sup-email'],
+    q['sup-address']
+  ].filter(Boolean).join('\n');
+  supY = block(supLines, M, supY, colW, 9, 'normal', GREY);
+
+  let forY = y;
+  const forLines = [q['my-name'], q['my-dept'], q['my-address']].filter(Boolean).join('\n');
+  if (q['my-company'] || forLines) {
+    forY = block('QUOTE FOR', col2, forY, colW, 8, 'bold', NAVY) + 1;
+    forY = block(q['my-company'], col2, forY, colW, 11, 'bold');
+    forY = block(forLines, col2, forY, colW, 9, 'normal', GREY);
+  }
+
+  y = Math.max(supY, forY) + 7;
+
+  if (q['q-subject']) {
+    y = block('Re: ' + q['q-subject'], M, y, R - M, 11, 'bold') + 4;
+  }
+
+  // --- Items table ---
+  const PAD = 2;
+  const cols = [
+    { title: 'Description', x: M,       w: 92, align: 'left' },
+    { title: 'Qty',         x: M + 92,  w: 16, align: 'right' },
+    { title: 'Unit',        x: M + 108, w: 16, align: 'left' },
+    { title: 'Unit price',  x: M + 124, w: 28, align: 'right' },
+    { title: 'Total',       x: M + 152, w: 28, align: 'right' }
+  ];
+  const textX = (c) => (c.align === 'right' ? c.x + c.w - PAD : c.x + PAD);
+
+  function tableHeader() {
+    doc.setFillColor(...NAVY);
+    doc.rect(M, y, R - M, 8, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...WHITE);
+    cols.forEach((c) => doc.text(c.title, textX(c), y + 5.4, { align: c.align }));
+    y += 8;
+  }
+
+  ensure(20);
+  tableHeader();
+
+  const SIZE = 9.5;
+  const rows = items
+    .map((it, i) => ({ desc: pdfSafe(it.desc).trim(), unit: pdfSafe(it.unit).trim(), it, total: t.lines[i] }))
+    .filter((r) => r.desc || toNumber(r.it.price) !== 0);
+
+  rows.forEach((r, i) => {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(SIZE);
+    const descLines = doc.splitTextToSize(r.desc || '-', cols[0].w - PAD * 2);
+    const unitLines = doc.splitTextToSize(r.unit, cols[2].w - PAD * 2);
+    const rowH = Math.max(descLines.length, unitLines.length, 1) * lineH(SIZE) + 4;
+
+    if (ensure(rowH)) tableHeader();
+
+    if (i % 2 === 1) {
+      doc.setFillColor(...ZEBRA);
+      doc.rect(M, y, R - M, rowH, 'F');
+    }
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(SIZE);
+    doc.setTextColor(...INK);
+    const base = y + 2 + SIZE * PT;
+    descLines.forEach((line, k) => doc.text(line, textX(cols[0]), base + k * lineH(SIZE)));
+    doc.text(String(r.it.qty).trim() ? plainNumber(toNumber(r.it.qty)) : '', textX(cols[1]), base, { align: 'right' });
+    unitLines.forEach((line, k) => doc.text(line, textX(cols[2]), base + k * lineH(SIZE)));
+    doc.text(money(toNumber(r.it.price), cur), textX(cols[3]), base, { align: 'right' });
+    doc.text(money(r.total, cur), textX(cols[4]), base, { align: 'right' });
+
+    y += rowH;
+    doc.setDrawColor(...RULE);
+    doc.setLineWidth(0.2);
+    doc.line(M, y, R, y);
+  });
+
+  // --- Totals ---
+  y += 4;
+  const sumRows = [['Subtotal', money(t.subtotal, cur)]];
+  if (t.discount) sumRows.push(['Discount (' + plainNumber(t.discountRate) + '%)', money(-t.discount, cur)]);
+  if (t.vatRate) sumRows.push(['VAT (' + plainNumber(t.vatRate) + '%)', money(t.vat, cur)]);
+
+  ensure(sumRows.length * 6 + 16);
+  const LX = R - 75;
+  sumRows.forEach(([label, value]) => {
+    block(label, LX + 3, y, 45, SIZE, 'normal', GREY);
+    block(value, R - PAD, y, 30, SIZE, 'normal', INK, 'right');
+    y += 6;
+  });
+  doc.setFillColor(...NAVY);
+  doc.rect(LX, y, R - LX, 10, 'F');
+  doc.setFillColor(...LIME);
+  doc.rect(LX, y, 1.5, 10, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11.5);
+  doc.setTextColor(...WHITE);
+  doc.text(t.vatRate ? 'TOTAL inc. VAT' : 'TOTAL', LX + 4, y + 6.6);
+  doc.text(money(t.total, cur), R - PAD, y + 6.6, { align: 'right' });
+  y += 18;
+
+  // --- Text sections ---
+  function section(title, text, size = SIZE) {
+    if (!text) return;
+    ensure(14);
+    y = block(title.toUpperCase(), M, y, R - M, 8, 'bold', NAVY) + 1.5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(size);
+    const lines = doc.splitTextToSize(text, R - M);
+    lines.forEach((line) => {
+      ensure(lineH(size));
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(size);
+      doc.setTextColor(...INK);
+      doc.text(line, M, y + size * PT);
+      y += lineH(size);
+    });
+    y += 5;
+  }
+  section('Lead time or delivery', q['lead-time']);
+  section('Payment terms', q['payment-terms']);
+  section('Notes', q['notes']);
+  section('Original email', q['email-text'], 8.5);
+
+  // --- Footer on every page ---
+  const footer = [q['sup-name'], q['q-ref'] && 'Ref. ' + q['q-ref']].filter(Boolean).join('   |   ');
+  const pages = doc.getNumberOfPages();
+  for (let p = 1; p <= pages; p++) {
+    doc.setPage(p);
+    doc.setDrawColor(...RULE);
+    doc.setLineWidth(0.2);
+    doc.line(M, H - 14, R, H - 14);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...GREY);
+    if (footer) doc.text(doc.splitTextToSize(footer, 140)[0], M, H - 9);
+    doc.text('Page ' + p + ' of ' + pages, R, H - 9, { align: 'right' });
+  }
+
+  return doc;
+}
+
+// e.g. "Quote - Worcester Presses Ltd - Q12345 - 2026-11-18.pdf"
+// The date goes last in year-month-day order so files sort by date.
+function pdfFileName(q) {
+  const parts = ['Quote', q['sup-name'], q['q-ref'], q['q-received']].filter(Boolean).join(' - ');
+  return parts.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim().slice(0, 120) + '.pdf';
+}
+
+// ---------------------------------------------------------------
+// 7. DOWNLOAD
+// Inside the Claude app the page asks Claude to save the file.
+// Anywhere else (your own server, GitHub Pages) the browser saves it.
+// ---------------------------------------------------------------
+const inClaude = !!(window.claude && typeof window.claude.use === 'function');
+const downloadsReady = inClaude
+  ? window.claude.use('downloads').catch(() => null)
+  : Promise.resolve(null);
+
+async function downloadPdf() {
+  if (!window.jspdf) {
+    showStatus('The PDF tool did not load. Check your internet connection and reload the page.', 'error');
+    return;
+  }
+  if (!readField('sup-name').trim()) {
+    showStatus('Add the supplier name first (section 1).', 'error');
+    $('sup-name').focus();
+    return;
+  }
+  const hasItems = items.some((it) => it.desc.trim() || toNumber(it.price) !== 0);
+  if (!hasItems) {
+    showStatus('Add at least one item with a description or a price (section 4).', 'error');
+    return;
+  }
+
+  const q = collectQuote();
+  const doc = buildPdf(q);
+  const name = pdfFileName(q);
+
+  if (!inClaude) {
+    doc.save(name);
+    showStatus('Downloaded ' + name);
+    return;
+  }
+
+  const downloads = await downloadsReady;
+  if (!downloads) {
+    showStatus('Saving files is not available in this view. Open the page on claude.ai to download.', 'error');
+    return;
+  }
+  try {
+    await downloads.save({ filename: name, data: doc.output('blob') });
+    showStatus('Saved ' + name);
+  } catch (err) {
+    const code = err && err.code;
+    if (code === 'declined') showStatus('Download cancelled.');
+    else if (code === 'rate_limited') showStatus('Please wait a moment, then try again.', 'error');
+    else showStatus('The PDF could not be saved here. Please try again.', 'error');
+  }
+}
+
+// ---------------------------------------------------------------
+// 8. NEW QUOTE (tap twice so you do not clear it by accident)
+// ---------------------------------------------------------------
+let clearTimer = null;
+function resetNewQuoteButton() {
+  clearTimer = null;
+  $('new-quote').textContent = 'New quote';
+  $('new-quote').classList.remove('armed');
+}
+
+function startNewQuote() {
+  JOB_FIELDS.forEach((id) => writeField(id, ''));
+  writeField('q-received', isoDate(new Date()));
+  items = [newItem()];
+  renderItems();
+  saveDraft();
+  showStatus('New quote started. Your own details are kept.');
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+}
+
+// ---------------------------------------------------------------
+// 9. START THE PAGE
+// ---------------------------------------------------------------
+loadDraft();
+renderItems();
+
+ALL_FIELDS.forEach((id) => {
+  const el = $(id);
+  const eventName = el.tagName === 'SELECT' ? 'change' : 'input';
+  el.addEventListener(eventName, () => { updateTotals(); saveDraft(); });
+});
+
+$('add-item').addEventListener('click', () => {
+  items.push(newItem());
+  renderItems();
+  saveDraft();
+  const last = items[items.length - 1];
+  $('item-' + last.id + '-desc').focus();
+});
+
+$('new-quote').addEventListener('click', () => {
+  const btn = $('new-quote');
+  if (!clearTimer) {
+    btn.textContent = 'Tap again to clear';
+    btn.classList.add('armed');
+    clearTimer = setTimeout(resetNewQuoteButton, 4000);
+    return;
+  }
+  clearTimeout(clearTimer);
+  resetNewQuoteButton();
+  startNewQuote();
+});
+
+$('download').addEventListener('click', downloadPdf);
+
+// ---------------------------------------------------------------
+// 10. INSTALL AS AN APP
+// Chrome and Edge fire "beforeinstallprompt" when the page can be
+// installed. We keep that event and show our own Install button.
+// ---------------------------------------------------------------
+let installEvent = null;
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();      // stop the browser's own pop-up
+  installEvent = event;        // keep it for when the button is pressed
+  $('install').hidden = false;
+});
+
+$('install').addEventListener('click', async () => {
+  if (!installEvent) return;
+  installEvent.prompt();                    // show the browser's install box
+  const choice = await installEvent.userChoice;
+  installEvent = null;                      // it can only be used once
+  $('install').hidden = true;
+  if (choice.outcome !== 'accepted') showStatus('Install cancelled. You can install it later from the address bar.');
+});
+
+window.addEventListener('appinstalled', () => {
+  $('install').hidden = true;
+  showStatus('Installed. Open Quote PDF from your Start menu or desktop.');
+});
+
+// The service worker keeps a copy of the app for offline use.
+// It only works on a real web address (https), not inside Claude.
+if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !inClaude) {
+  navigator.serviceWorker.register('sw.js').catch(() => {
+    // Not available: the page still works, just not offline.
+  });
+}
+</script>
+</body>
+</html>
